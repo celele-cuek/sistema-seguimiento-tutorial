@@ -4,7 +4,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import { readSheet, writeRow, clearAndWriteSheet, batchWrite } from '../../lib/sheetsApi.js';
 import { exportToExcel } from '../../lib/csvProcessor.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical } from 'lucide-react';
+import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck } from 'lucide-react';
 
 const ALL_SHEETS = ['CONFIGURACION', 'CALENDARIO', 'USUARIOS', 'PARTICIPANTES', 'ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'LOG', 'EVALUACIONES'];
 const DATA_SHEETS = ['ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'EVALUACIONES', 'LOG'];
@@ -23,6 +23,10 @@ export default function Backup() {
   const [seedingTPSE, setSeedingTPSE] = useState(false);
   const [seedTPSEDone, setSeedTPSEDone] = useState(false);
   const [seedTPSEError, setSeedTPSEError] = useState('');
+
+  const [deduping, setDeduping] = useState(false);
+  const [dedupResult, setDedupResult] = useState(null);
+  const [dedupError, setDedupError] = useState('');
 
   async function handleBackup() {
     setLoading(true);
@@ -64,6 +68,38 @@ export default function Backup() {
       setProgress('');
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function handleDedup() {
+    setDeduping(true);
+    setDedupResult(null);
+    setDedupError('');
+    try {
+      setProgress('Leyendo PARTICIPANTES…');
+      const rows = await readSheet('PARTICIPANTES');
+      const seen = new Set();
+      const unique = [];
+      const dups = [];
+      for (const row of rows) {
+        if (!seen.has(row.rut)) { seen.add(row.rut); unique.push(row); }
+        else dups.push(row.rut);
+      }
+      if (dups.length === 0) {
+        setDedupResult({ removed: 0, kept: unique.length });
+        setProgress('');
+        return;
+      }
+      setProgress(`Reescribiendo ${unique.length} participantes únicos…`);
+      await clearAndWriteSheet('PARTICIPANTES', unique);
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'DEDUP_PARTICIPANTES', entidad: 'PARTICIPANTES', grupo: '', semana: '', detalle: `${dups.length} duplicados eliminados`, ip: '' });
+      setDedupResult({ removed: dups.length, kept: unique.length });
+      setProgress('');
+    } catch (err) {
+      setDedupError('Error: ' + err.message);
+      setProgress('');
+    } finally {
+      setDeduping(false);
     }
   }
 
@@ -251,6 +287,37 @@ export default function Backup() {
             </div>
           )}
         </div>
+        {/* Dedup participants */}
+        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-yellow-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-yellow-50">
+              <ShieldCheck size={18} className="text-yellow-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Limpiar duplicados de nómina</h2>
+              <p className="text-sm text-gray-500">Elimina filas duplicadas en PARTICIPANTES conservando la primera ocurrencia de cada RUT</p>
+            </div>
+          </div>
+          {progress && deduping && <p className="text-sm text-gray-500">{progress}</p>}
+          {dedupError && <p className="text-sm text-red-600">{dedupError}</p>}
+          {dedupResult && (
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm">
+                {dedupResult.removed === 0
+                  ? `Sin duplicados — ${dedupResult.kept} participantes únicos.`
+                  : `${dedupResult.removed} duplicado${dedupResult.removed > 1 ? 's' : ''} eliminado${dedupResult.removed > 1 ? 's' : ''}. Quedan ${dedupResult.kept} participantes únicos.`}
+              </span>
+            </div>
+          )}
+          <button onClick={handleDedup} disabled={deduping}
+            className="flex items-center gap-2 self-start px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40"
+            style={{ background: '#ca8a04' }}>
+            <ShieldCheck size={15} />
+            {deduping ? 'Limpiando…' : 'Limpiar duplicados'}
+          </button>
+        </div>
+
         {/* Seed TP/SE */}
         <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-indigo-100">
           <div className="flex items-center gap-3">
