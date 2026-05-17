@@ -10,7 +10,7 @@ export default function Topbar({ title, actions }) {
   const navigate = useNavigate();
 
   const currentWeek = config ? getCurrentWeek(config.fecha_inicio, config.total_semanas) : null;
-  const needsSetup = auth?.bootstrap || config?.setup_completo === false || config?.setup_completo === 'FALSE';
+  const needsSetup = config !== null && !config?.setup_completo;
 
   return (
     <div className="sticky top-0 z-30 flex flex-col">
