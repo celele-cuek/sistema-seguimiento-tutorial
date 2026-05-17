@@ -4,10 +4,11 @@ import { useConfig } from '../../contexts/ConfigContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import KpiCard from '../../components/ui/KpiCard.jsx';
 import AlertItem from '../../components/ui/AlertItem.jsx';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import Tooltip from '../../components/ui/Tooltip.jsx';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, Cell } from 'recharts';
 import { readSheet } from '../../lib/sheetsApi.js';
 import { pctDisplay } from '../../lib/utils.js';
-import { Users, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Users, AlertTriangle, CheckCircle, Clock, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TutorDashboard() {
@@ -52,7 +53,6 @@ export default function TutorDashboard() {
 
   const alertasPendientes = novedades.filter(n => n.estado_caso === 'Pendiente' || n.estado_caso === 'En seguimiento');
 
-  // Weekly coverage chart
   const semanas = Array.from({ length: config?.total_semanas || 12 }, (_, i) => i + 1);
   const semanaData = semanas.map(s => {
     const enSemana = resumen.filter(r => Number(r.ultima_sesion_registrada) >= s);
@@ -80,30 +80,39 @@ export default function TutorDashboard() {
             value={participantes.length}
             icon={<Users size={16} />}
             color="verde"
+            tooltip="Total de participantes activos en tu(s) grupo(s). No incluye personas dadas de baja o inactivas."
           />
           <KpiCard
             label="% Asistencia prom."
             value={pctGlobal !== null ? pctDisplay(pctGlobal) : '—'}
             color={pctGlobal !== null && pctGlobal * 100 <= (config?.umbral_critico || 70) ? 'critico' : 'verde'}
+            tooltip={`Promedio de asistencia acumulado del grupo. Se calcula sobre todas las sesiones TP y SE registradas hasta hoy. Umbral crítico: ${config?.umbral_critico || 70}%, Umbral alerta: ${config?.umbral_alerta || 75}%.`}
           />
           <KpiCard
             label="En zona crítica"
             value={criticos.length}
             icon={<AlertTriangle size={16} />}
             color={criticos.length > 0 ? 'critico' : 'verde'}
+            tooltip={`Participantes con asistencia bajo ${config?.umbral_critico || 70}%. Requieren contacto inmediato y posible derivación a coordinación. Haz clic en "Ver ficha" para ver el historial completo.`}
           />
           <KpiCard
             label="En zona alerta"
             value={enAlerta.length}
             icon={<Clock size={16} />}
             color={enAlerta.length > 0 ? 'alerta' : 'verde'}
+            tooltip={`Participantes con asistencia entre ${config?.umbral_critico || 70}% y ${config?.umbral_alerta || 75}%. Están en riesgo — conviene hacer contacto preventivo antes de que empeore.`}
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chart */}
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Asistencia promedio por semana</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-sm font-semibold text-gray-700">Asistencia promedio por semana</h2>
+              <Tooltip content="Muestra cómo evoluciona el promedio de asistencia del grupo semana a semana. Las barras rojas indican semanas bajo el umbral crítico; las naranjas bajo el umbral de alerta. Solo considera semanas con sesiones ya registradas.">
+                <HelpCircle size={13} className="text-gray-300 cursor-help" />
+              </Tooltip>
+            </div>
             {resumen.length === 0 ? (
               <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Sin datos de asistencia aún</div>
             ) : (
@@ -111,7 +120,7 @@ export default function TutorDashboard() {
                 <BarChart data={semanaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                  <Tooltip formatter={(v) => `${v}%`} />
+                  <ReTooltip formatter={(v) => `${v}%`} />
                   <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
                     {semanaData.map((entry, i) => (
                       <Cell
@@ -128,7 +137,12 @@ export default function TutorDashboard() {
           {/* Alertas */}
           <div className="bg-white rounded-xl shadow-sm p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-700">Alertas activas</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-700">Alertas activas</h2>
+                <Tooltip content="Participantes que superaron un umbral de alerta en asistencia. El sistema calcula alertas automáticamente al guardar cada sesión. Haz clic en 'Ver ficha' para ver el historial completo del participante y registrar novedades.">
+                  <HelpCircle size={13} className="text-gray-300 cursor-help" />
+                </Tooltip>
+              </div>
               <span className="text-xs text-gray-400">{criticos.length + enAlerta.length} total</span>
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-64">
@@ -176,7 +190,12 @@ export default function TutorDashboard() {
         {/* Novedades pendientes */}
         {alertasPendientes.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Novedades pendientes de seguimiento ({alertasPendientes.length})</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-700">Novedades pendientes de seguimiento ({alertasPendientes.length})</h2>
+              <Tooltip content="Situaciones que requieren acción de tu parte: participantes con retiros, ausencias justificadas, o casos derivados. Haz clic en 'Ver' para ir al módulo de novedades y actualizar su estado.">
+                <HelpCircle size={13} className="text-gray-300 cursor-help" />
+              </Tooltip>
+            </div>
             <div className="flex flex-col gap-2">
               {alertasPendientes.slice(0, 5).map(n => (
                 <AlertItem

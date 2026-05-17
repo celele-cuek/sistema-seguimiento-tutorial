@@ -3,7 +3,9 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import AttendanceGrid from '../../components/attendance/AttendanceGrid.jsx';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
+import { HelpCircle } from 'lucide-react';
 
 export default function WeeklyGrid() {
   const { auth } = useAuth();
@@ -38,6 +40,14 @@ export default function WeeklyGrid() {
     <div className="flex-1 flex flex-col">
       <Topbar title="Grilla histórica de asistencia" />
       <div className="flex-1 p-6 flex flex-col gap-4 overflow-hidden">
+        {/* Info header */}
+        <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-blue-700 shrink-0">
+          <HelpCircle size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Resumen visual de asistencia de todo el grupo semana a semana. Cada celda muestra el estado de la sesión TP o SE: <strong>A</strong> = asistió · <strong>R</strong> = retiro · <strong>J</strong> = justificado · <strong>F</strong> = falta · <strong>SE</strong> = sesión con experto.
+            La columna <strong>% Acum.</strong> es el porcentaje de asistencia acumulado ponderado. La columna <strong>Alerta</strong> indica el nivel de riesgo actual.
+          </span>
+        </div>
         {grupos.length > 1 && (
           <div className="flex gap-2 flex-wrap">
             {grupos.map(g => (

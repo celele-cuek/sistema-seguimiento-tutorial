@@ -1,4 +1,7 @@
-export default function KpiCard({ label, value, sub, color = 'verde', icon, className = '' }) {
+import Tooltip from './Tooltip.jsx';
+import { HelpCircle } from 'lucide-react';
+
+export default function KpiCard({ label, value, sub, color = 'verde', icon, tooltip, className = '' }) {
   const colors = {
     verde:   'border-l-[var(--color-verde)]  text-[var(--color-verde)]',
     azul:    'border-l-[var(--color-azul)]   text-[var(--color-azul)]',
@@ -12,7 +15,14 @@ export default function KpiCard({ label, value, sub, color = 'verde', icon, clas
   return (
     <div className={`bg-white rounded-xl border-l-4 ${accent} shadow-sm p-4 flex flex-col gap-1 ${className}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+          {tooltip && (
+            <Tooltip content={tooltip}>
+              <HelpCircle size={11} className="text-gray-300 cursor-help" />
+            </Tooltip>
+          )}
+        </div>
         {icon && <span className="text-gray-400">{icon}</span>}
       </div>
       <span className={`text-3xl font-bold ${accent.split(' ')[1]}`}>{value}</span>

@@ -4,7 +4,8 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import { readSheet, batchWrite, writeRow } from '../../lib/sheetsApi.js';
 import { parseFile } from '../../lib/csvProcessor.js';
 import { generateId, nowISO, daysSince } from '../../lib/utils.js';
-import { Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload, CheckCircle, AlertTriangle, HelpCircle } from 'lucide-react';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 
 const EXPECTED_COLS = ['rut', 'ultimo_acceso', 'participo_foro', 'entrego_producto', 'blog_actualizado'];
 
@@ -107,6 +108,16 @@ export default function MoodleUpload() {
       <div className="flex-1 p-6 flex flex-col gap-5 overflow-y-auto max-w-3xl">
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center gap-2"><AlertTriangle size={14} />{error}</div>}
 
+        {/* Info banner */}
+        <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 flex items-start gap-2 text-xs text-blue-700">
+          <HelpCircle size={13} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold mb-1">¿Para qué sirve esta sección?</p>
+            <p>Permite registrar la actividad de tus participantes en la plataforma Moodle: accesos, participación en foros, entrega de productos y estado del blog. Estos datos alimentan el indicador de actividad Moodle en la ficha de cada participante y activan alertas si alguien lleva demasiados días sin conectarse.</p>
+            <p className="mt-1">Descarga el informe desde Moodle → Administración del curso → Informes → Participación del curso, y súbelo aquí en formato CSV o Excel.</p>
+          </div>
+        </div>
+
         {/* Step 0: Upload */}
         {step >= 0 && step < 3 && (
           <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4">
@@ -126,16 +137,30 @@ export default function MoodleUpload() {
             <h2 className="font-semibold text-gray-800">2. Mapear columnas</h2>
             <p className="text-sm text-gray-500">Verifica que cada campo del sistema apunte a la columna correcta del archivo.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {EXPECTED_COLS.map(col => (
+              {EXPECTED_COLS.map(col => {
+                const tips = {
+                  rut: 'Columna que contiene el RUT del participante (sin puntos, con guión). Se usa para vincular el registro con el participante en el sistema.',
+                  ultimo_acceso: 'Fecha del último acceso del participante a Moodle. Formato: YYYY-MM-DD o similar. Se usa para calcular días sin conexión.',
+                  participo_foro: 'Indica si el participante participó en el foro del curso esa semana. Acepta: Sí/No, TRUE/FALSE, 1/0.',
+                  entrego_producto: 'Indica si el participante entregó el producto o tarea de la semana. Acepta: Sí/No, TRUE/FALSE, 1/0.',
+                  blog_actualizado: 'Indica si el participante actualizó su blog de aprendizaje esa semana. Acepta: Sí/No, TRUE/FALSE, 1/0.',
+                };
+                return (
                 <div key={col}>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">{col.replace(/_/g, ' ')}</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                    {col.replace(/_/g, ' ')}
+                    <Tooltip content={tips[col] || ''}>
+                      <HelpCircle size={11} className="text-gray-300 cursor-help" />
+                    </Tooltip>
+                  </label>
                   <select value={colMap[col] ?? ''} onChange={e => setColMap(m => ({ ...m, [col]: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]">
                     <option value="">— sin mapear —</option>
                     {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
                   </select>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <button onClick={buildPreview} className="self-start px-5 py-2 rounded-xl text-white text-sm font-medium" style={{ background: 'var(--color-verde)' }}>
               Ver preview
