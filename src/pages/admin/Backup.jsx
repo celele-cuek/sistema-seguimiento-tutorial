@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
-import { readSheet, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
+import { readSheet, writeRow, clearAndWriteSheet, batchWrite } from '../../lib/sheetsApi.js';
 import { exportToExcel } from '../../lib/csvProcessor.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Database, Download, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical } from 'lucide-react';
 
 const ALL_SHEETS = ['CONFIGURACION', 'CALENDARIO', 'USUARIOS', 'PARTICIPANTES', 'ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'LOG', 'EVALUACIONES'];
 const DATA_SHEETS = ['ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'EVALUACIONES', 'LOG'];
@@ -19,6 +19,10 @@ export default function Backup() {
   const [resetDone, setResetDone] = useState(false);
   const [resetError, setResetError] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+
+  const [seedingTPSE, setSeedingTPSE] = useState(false);
+  const [seedTPSEDone, setSeedTPSEDone] = useState(false);
+  const [seedTPSEError, setSeedTPSEError] = useState('');
 
   async function handleBackup() {
     setLoading(true);
@@ -60,6 +64,100 @@ export default function Backup() {
       setProgress('');
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function handleSeedTPSE() {
+    setSeedingTPSE(true);
+    setSeedTPSEDone(false);
+    setSeedTPSEError('');
+    try {
+      setProgress('Leyendo participantes…');
+      const parts = await readSheet('PARTICIPANTES');
+      const active = parts.filter(p => p.estado !== 'Inactivo');
+      if (!active.length) throw new Error('No hay participantes activos. Carga la nómina primero.');
+
+      // 5 attendance patterns (TP,SE per week) covering OK, ALERTA and CRÍTICO levels
+      const PATTERNS = [
+        [['A','A'],['A','A'],['A','F'],['A','A'],['A','A']], // ~90% OK
+        [['A','A'],['A','A'],['A','A'],['A','A'],['A','A']], // 100% OK
+        [['A','A'],['A','F'],['J','A'],['F','R'],['A','F']], // ~61% CRÍTICO
+        [['A','A'],['A','F'],['J','A'],['A','R'],['F','A']], // ~72% ALERTA
+        [['A','A'],['A','A'],['R','A'],['A','J'],['A','A']], // ~94% OK
+      ];
+      const SEMANAS = [1, 2, 3, 4, 5];
+
+      // Group active participants by grupo, take first 5 per group
+      const byGrupo = {};
+      for (const p of active) {
+        if (!byGrupo[p.grupo]) byGrupo[p.grupo] = [];
+        if (byGrupo[p.grupo].length < 5) byGrupo[p.grupo].push(p);
+      }
+
+      const asistenciaRows = [];
+      const resumenRows = [];
+      const now = nowISO();
+
+      for (const [grupoId, sample] of Object.entries(byGrupo)) {
+        for (let pi = 0; pi < sample.length; pi++) {
+          const p = sample[pi];
+          const pattern = PATTERNS[pi % PATTERNS.length];
+          let cursadas = 0, asistidas = 0, cj = 0, cr = 0, cf = 0;
+
+          for (let wi = 0; wi < SEMANAS.length; wi++) {
+            const semana = SEMANAS[wi];
+            const [tpE, seE] = pattern[wi];
+
+            for (const [tipo, estado] of [['TP', tpE], ['SE', seE]]) {
+              const pctSesion = estado === 'A' ? 100 : estado === 'R' ? 50 : 0;
+              asistenciaRows.push({
+                id: generateId(), rut_participante: p.rut, grupo: grupoId,
+                semana: String(semana), tipo_sesion: tipo, fecha_sesion: '',
+                estado, hora_evento: '', pct_sesion: String(pctSesion),
+                registrado_por: auth.email, fecha_registro: now,
+                editado: 'FALSE', fecha_edicion: '', editado_por: '',
+              });
+              if (estado === 'J') { cj++; }
+              else {
+                cursadas++;
+                asistidas += estado === 'A' ? 1 : estado === 'R' ? 0.5 : 0;
+                if (estado === 'R') cr++;
+                if (estado === 'F') cf++;
+              }
+            }
+          }
+
+          const pct = cursadas > 0 ? Math.round((asistidas / cursadas) * 100) : 0;
+          const aAs = pct < 70 ? 'CRÍTICO' : pct < 75 ? 'ALERTA' : 'OK';
+          const aJ  = cj >= 3 ? 'ALERTA' : 'OK';
+          const aR  = cr >= 3 ? 'ALERTA' : 'OK';
+          const alertaMax = [aAs, aJ, aR].includes('CRÍTICO') ? 'CRÍTICO'
+            : [aAs, aJ, aR].includes('ALERTA') ? 'ALERTA' : 'OK';
+
+          resumenRows.push({
+            rut: p.rut, grupo: grupoId, pct_asistencia: String(pct),
+            sesiones_cursadas: String(cursadas), sesiones_asistidas: String(asistidas),
+            contador_j: String(cj), contador_r: String(cr), contador_f: String(cf),
+            alerta_asistencia: aAs, alerta_justificaciones: aJ, alerta_retiros: aR,
+            alerta_logro: 'OK', alerta_moodle: 'OK', alerta_max: alertaMax,
+            ultima_sesion_registrada: '5', fecha_ultimo_registro: now,
+            logro_promedio: '', evaluaciones_bajo_umbral: '0',
+          });
+        }
+      }
+
+      setProgress(`Escribiendo ${asistenciaRows.length} registros de asistencia…`);
+      await batchWrite('ASISTENCIA', asistenciaRows);
+      setProgress('Actualizando resumen de participantes…');
+      await clearAndWriteSheet('RESUMEN_PARTICIPANTE', resumenRows);
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'SEED_TPSE', entidad: 'ASISTENCIA', grupo: '', semana: '', detalle: `${asistenciaRows.length} registros en ${Object.keys(byGrupo).length} grupos`, ip: '' });
+      setProgress('');
+      setSeedTPSEDone(true);
+    } catch (err) {
+      setSeedTPSEError('Error: ' + err.message);
+      setProgress('');
+    } finally {
+      setSeedingTPSE(false);
     }
   }
 
@@ -153,6 +251,42 @@ export default function Backup() {
             </div>
           )}
         </div>
+        {/* Seed TP/SE */}
+        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-indigo-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-100">
+              <FlaskConical size={18} className="text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Cargar datos demo TP/SE</h2>
+              <p className="text-sm text-gray-500">Inserta asistencia de prueba (5 semanas, TP y SE) para todos los grupos</p>
+            </div>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700">
+            <p className="font-semibold mb-1">Qué hace:</p>
+            <ul className="list-disc list-inside flex flex-col gap-0.5">
+              <li>Lee los participantes activos de la nómina</li>
+              <li>Escribe 10 sesiones (5 sem × TP + SE) por participante con estados variados</li>
+              <li>Genera participantes con niveles <strong>OK</strong>, <strong>ALERTA</strong> y <strong>CRÍTICO</strong></li>
+              <li>Actualiza RESUMEN_PARTICIPANTE con porcentajes y alertas calculadas</li>
+            </ul>
+          </div>
+          {progress && seedingTPSE && <p className="text-sm text-gray-500">{progress}</p>}
+          {seedTPSEError && <p className="text-sm text-red-600">{seedTPSEError}</p>}
+          {seedTPSEDone && (
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm">Datos TP/SE cargados. Abre la Grilla histórica para verificar.</span>
+            </div>
+          )}
+          <button onClick={handleSeedTPSE} disabled={seedingTPSE}
+            className="flex items-center gap-2 self-start px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40"
+            style={{ background: '#4f46e5' }}>
+            <FlaskConical size={15} />
+            {seedingTPSE ? 'Cargando…' : 'Cargar datos demo TP/SE'}
+          </button>
+        </div>
+
       </div>
     </div>
   );
