@@ -4,9 +4,10 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Modal from '../../components/ui/Modal.jsx';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet, updateRow, writeRow } from '../../lib/sheetsApi.js';
 import { generateId, nowISO, normalizeRut } from '../../lib/utils.js';
-import { Plus } from 'lucide-react';
+import { Plus, HelpCircle } from 'lucide-react';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
 
 export default function NominaManager() {
@@ -64,8 +65,12 @@ export default function NominaManager() {
     }},
     { key: 'acciones', label: '', sortable: false, render: (_, row) => (
       <div className="flex gap-1">
-        <button onClick={(e) => { e.stopPropagation(); setEditP({ ...row }); }} className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">Editar</button>
-        <button onClick={(e) => { e.stopPropagation(); handleBaja(row); }} className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">Baja</button>
+        <Tooltip content="Editar datos del participante: nombre, correo, grupo, microgrupo, función, establecimiento, etc.">
+          <button onClick={(e) => { e.stopPropagation(); setEditP({ ...row }); }} className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">Editar</button>
+        </Tooltip>
+        <Tooltip content="Marcar al participante como inactivo. Sus datos y registros de asistencia se conservan, pero ya no aparecerá en las listas activas ni en los cálculos de asistencia.">
+          <button onClick={(e) => { e.stopPropagation(); handleBaja(row); }} className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">Baja</button>
+        </Tooltip>
       </div>
     )},
   ];
@@ -74,12 +79,26 @@ export default function NominaManager() {
     <div className="flex-1 flex flex-col">
       <Topbar title="Gestión de nómina" />
       <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
+
+        {/* Info banner */}
+        <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-blue-700">
+          <HelpCircle size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Nómina completa de participantes activos. Usa los filtros de grupo para ver un grupo específico.
+            Haz clic en cualquier fila para ver la <strong>ficha completa del participante</strong> con su historial de asistencia y novedades.
+            La columna <strong>Alerta</strong> refleja el nivel de riesgo actual según los umbrales configurados.
+          </span>
+        </div>
+
         <div className="flex gap-2 flex-wrap items-center">
-          <button onClick={() => setGrupo('')} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!grupo ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`} style={!grupo ? { background: 'var(--color-verde)' } : {}}>Todos</button>
+          <Tooltip content="Muestra todos los participantes activos del curso, sin filtrar por grupo.">
+            <button onClick={() => setGrupo('')} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!grupo ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`} style={!grupo ? { background: 'var(--color-verde)' } : {}}>Todos</button>
+          </Tooltip>
           {GRUPOS_SEED.map(g => (
             <button key={g.id} onClick={() => setGrupo(g.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${grupo === g.id ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`} style={grupo === g.id ? { background: 'var(--color-verde)' } : {}}>{g.id}</button>
           ))}
         </div>
+
         {loading ? <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-[var(--color-verde)] border-t-transparent rounded-full animate-spin" /></div> : (
           <DataTable columns={columns} data={participants} searchable emptyText="Sin participantes" onRowClick={row => navigate(`/coord/participant/${row.rut}`)} />
         )}
@@ -97,10 +116,28 @@ export default function NominaManager() {
           }
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {['nombres', 'primer_apellido', 'segundo_apellido', 'correo', 'telefono', 'grupo', 'microgrupo', 'funcion_principal', 'establecimiento', 'region', 'comuna', 'dependencia'].map(field => (
-              <div key={field}>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">{field.replace(/_/g, ' ')}</label>
-                <input value={editP[field] || ''} onChange={e => setEditP(p => ({ ...p, [field]: e.target.value }))}
+            {[
+              { key: 'nombres', tip: 'Nombres del participante (sin apellidos).' },
+              { key: 'primer_apellido', tip: 'Primer apellido.' },
+              { key: 'segundo_apellido', tip: 'Segundo apellido.' },
+              { key: 'correo', tip: 'Correo electrónico principal para contacto.' },
+              { key: 'telefono', tip: 'Teléfono de contacto. Formato libre.' },
+              { key: 'grupo', tip: 'ID del grupo de tutoría al que pertenece (ej: A01). Cambiar esto reasigna al participante.' },
+              { key: 'microgrupo', tip: 'Subgrupo dentro del grupo de tutoría para organización interna del tutor.' },
+              { key: 'funcion_principal', tip: 'Cargo o función que desempeña en su establecimiento (ej: Docente, Director, etc.).' },
+              { key: 'establecimiento', tip: 'Nombre del establecimiento educacional donde trabaja.' },
+              { key: 'region', tip: 'Región del país donde se ubica el establecimiento.' },
+              { key: 'comuna', tip: 'Comuna donde se ubica el establecimiento.' },
+              { key: 'dependencia', tip: 'Dependencia administrativa: Municipal, Particular subvencionado, Particular pagado, SLEP, etc.' },
+            ].map(({ key, tip }) => (
+              <div key={key}>
+                <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  {key.replace(/_/g, ' ')}
+                  <Tooltip content={tip}>
+                    <HelpCircle size={10} className="text-gray-300 cursor-help" />
+                  </Tooltip>
+                </label>
+                <input value={editP[key] || ''} onChange={e => setEditP(p => ({ ...p, [key]: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]" />
               </div>
             ))}

@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Topbar from '../../components/layout/Topbar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
 import { pctDisplay } from '../../lib/utils.js';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertTriangle, Users, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { AlertTriangle, Users, TrendingUp, HelpCircle } from 'lucide-react';
 
 export default function CoordPanel() {
   const navigate = useNavigate();
@@ -71,34 +72,56 @@ export default function CoordPanel() {
 
         {/* Summary KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <div className="text-2xl font-bold text-[var(--color-verde)]">{participantes.length}</div>
-            <div className="text-xs text-gray-400 mt-1">Participantes activos</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <div className="text-2xl font-bold text-[#7A1818]">{resumen.filter(r => r.alerta_max === 'CRÍTICO').length}</div>
-            <div className="text-xs text-gray-400 mt-1">En zona crítica</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <div className="text-2xl font-bold text-[#7A5010]">{resumen.filter(r => r.alerta_max === 'ALERTA').length}</div>
-            <div className="text-xs text-gray-400 mt-1">En zona alerta</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-            <div className="text-2xl font-bold text-gray-700">
-              {resumen.length ? pctDisplay(resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / resumen.length) : '—'}
+          <Tooltip content="Total de participantes activos en el curso. No incluye personas dadas de baja. Haz clic en cualquier tarjeta de grupo para ver el detalle.">
+            <div className="bg-white rounded-xl shadow-sm p-4 text-center cursor-default">
+              <div className="text-2xl font-bold text-[var(--color-verde)]">{participantes.length}</div>
+              <div className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                Participantes activos <HelpCircle size={10} className="text-gray-300" />
+              </div>
             </div>
-            <div className="text-xs text-gray-400 mt-1">Asistencia global</div>
-          </div>
+          </Tooltip>
+          <Tooltip content="Participantes con asistencia bajo el umbral crítico. Requieren contacto inmediato. El umbral se configura en Admin → Umbrales.">
+            <div className="bg-white rounded-xl shadow-sm p-4 text-center cursor-default">
+              <div className="text-2xl font-bold text-[#7A1818]">{resumen.filter(r => r.alerta_max === 'CRÍTICO').length}</div>
+              <div className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                En zona crítica <HelpCircle size={10} className="text-gray-300" />
+              </div>
+            </div>
+          </Tooltip>
+          <Tooltip content="Participantes con asistencia entre el umbral de alerta y el crítico. Están en riesgo — se recomienda contacto preventivo del tutor.">
+            <div className="bg-white rounded-xl shadow-sm p-4 text-center cursor-default">
+              <div className="text-2xl font-bold text-[#7A5010]">{resumen.filter(r => r.alerta_max === 'ALERTA').length}</div>
+              <div className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                En zona alerta <HelpCircle size={10} className="text-gray-300" />
+              </div>
+            </div>
+          </Tooltip>
+          <Tooltip content="Promedio de asistencia ponderado sobre todos los participantes y todas las sesiones registradas hasta la fecha. Incluye TP y SE.">
+            <div className="bg-white rounded-xl shadow-sm p-4 text-center cursor-default">
+              <div className="text-2xl font-bold text-gray-700">
+                {resumen.length ? pctDisplay(resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / resumen.length) : '—'}
+              </div>
+              <div className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
+                Asistencia global <HelpCircle size={10} className="text-gray-300" />
+              </div>
+            </div>
+          </Tooltip>
         </div>
 
         {/* Bar chart */}
         <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"><TrendingUp size={14} />Asistencia promedio por grupo</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={14} className="text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-700">Asistencia promedio por grupo</h2>
+            <Tooltip content="Compara el porcentaje de asistencia promedio entre los 16 grupos. Las barras rojas están bajo el umbral crítico; las naranjas bajo el umbral de alerta; las verdes están bien. Los grupos sin datos aparecen en 0%.">
+              <HelpCircle size={13} className="text-gray-300 cursor-help" />
+            </Tooltip>
+          </div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="grupo" tick={{ fontSize: 10 }} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-              <Tooltip formatter={(v) => `${v}%`} />
+              <ReTooltip formatter={(v) => `${v}%`} />
               <Bar dataKey="pct" radius={[3, 3, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={entry.pct <= 70 ? '#7A1818' : entry.pct <= 75 ? '#C8974A' : '#2E6B5E'} />
@@ -109,7 +132,13 @@ export default function CoordPanel() {
         </div>
 
         {/* Group cards */}
-        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Users size={14} />Grupos ({GRUPOS_SEED.length})</h2>
+        <div className="flex items-center gap-2">
+          <Users size={14} className="text-gray-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Grupos ({GRUPOS_SEED.length})</h2>
+          <Tooltip content="Cada tarjeta muestra el ID del grupo, el/la tutor/a responsable, el % de asistencia promedio del grupo y cuántos participantes tienen alertas activas. Haz clic para ver la nómina detallada del grupo.">
+            <HelpCircle size={13} className="text-gray-300 cursor-help" />
+          </Tooltip>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {GRUPOS_SEED.map(g => {
             const stats = getGrupoStats(g.id);
