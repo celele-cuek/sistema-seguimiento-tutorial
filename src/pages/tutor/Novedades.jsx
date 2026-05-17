@@ -7,7 +7,8 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { readSheet, writeRow } from '../../lib/sheetsApi.js';
 import { generateId, nowISO, formatDateTime } from '../../lib/utils.js';
-import { Plus } from 'lucide-react';
+import { Plus, HelpCircle } from 'lucide-react';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 
 const TIPOS_NOVEDAD = [
   'Retiro en primera hora',
@@ -177,7 +178,12 @@ export default function Novedades() {
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Tipo de novedad</label>
+            <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              Tipo de novedad
+              <Tooltip content="Categoría de la situación. Elige el tipo que mejor describa lo ocurrido; esto permite filtrar y analizar patrones en el curso.">
+                <HelpCircle size={12} className="text-gray-400 cursor-help" />
+              </Tooltip>
+            </label>
             <select value={form.tipo_novedad} onChange={e => setForm(f => ({ ...f, tipo_novedad: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]">
               <option value="">Seleccionar…</option>
@@ -186,12 +192,22 @@ export default function Novedades() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Hora evento</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Hora evento
+                <Tooltip content="Hora exacta del retiro, tardanza u otro evento. Opcional, pero ayuda al coordinador a evaluar la gravedad del caso.">
+                  <HelpCircle size={12} className="text-gray-400 cursor-help" />
+                </Tooltip>
+              </label>
               <input type="time" value={form.hora_evento} onChange={e => setForm(f => ({ ...f, hora_evento: e.target.value }))}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Estado del caso</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Estado del caso
+                <Tooltip content="Pendiente: recién registrado. En seguimiento: contacto iniciado. Resuelto: situación cerrada. Derivado/Baja: coordinación tomó el caso.">
+                  <HelpCircle size={12} className="text-gray-400 cursor-help" />
+                </Tooltip>
+              </label>
               <select value={form.estado_caso} onChange={e => setForm(f => ({ ...f, estado_caso: e.target.value }))}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]">
                 {ESTADOS_CASO.map(e => <option key={e} value={e}>{e}</option>)}
@@ -199,7 +215,12 @@ export default function Novedades() {
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Requiere seguimiento</label>
+            <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              Requiere seguimiento
+              <Tooltip content="'Sí': debes hacer contacto posterior. 'Derivar a coordinación': el caso supera el alcance de tutoría y debe escalar.">
+                <HelpCircle size={12} className="text-gray-400 cursor-help" />
+              </Tooltip>
+            </label>
             <select value={form.requiere_seguimiento} onChange={e => setForm(f => ({ ...f, requiere_seguimiento: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]">
               <option value="No">No</option>
@@ -208,7 +229,12 @@ export default function Novedades() {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Observación</label>
+            <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              Observación
+              <Tooltip content="Descripción detallada del caso. Esta información es visible para la coordinación y queda en el historial permanente del participante.">
+                <HelpCircle size={12} className="text-gray-400 cursor-help" />
+              </Tooltip>
+            </label>
             <textarea rows={3} value={form.observacion} onChange={e => setForm(f => ({ ...f, observacion: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)] resize-none"
               placeholder="Describa la situación…" />

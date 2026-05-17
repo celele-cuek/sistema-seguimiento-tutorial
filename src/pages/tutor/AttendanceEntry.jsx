@@ -7,7 +7,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import { readSheet, batchWrite, writeRow, updateRow } from '../../lib/sheetsApi.js';
 import { calcPctSesion, generateId, nowISO, pctDisplay } from '../../lib/utils.js';
 import { calcResumenParticipante, nivelMax } from '../../lib/alertEngine.js';
-import { CheckCircle, Save, ChevronRight, Users, ClipboardCheck } from 'lucide-react';
+import { CheckCircle, Save, ChevronRight, Users, ClipboardCheck, HelpCircle } from 'lucide-react';
+import Tooltip from '../../components/ui/Tooltip.jsx';
 
 const STEPS = ['Seleccionar sesión', 'Registrar asistencia', 'Confirmar y guardar'];
 
@@ -251,7 +252,12 @@ export default function AttendanceEntry() {
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Semana</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  Semana
+                  <Tooltip content="Número de semana del curso en que se realizó esta sesión. Cada semana puede tener una TP y/o una SE.">
+                    <HelpCircle size={12} className="text-gray-400 cursor-help" />
+                  </Tooltip>
+                </label>
                 <select value={semana} onChange={e => setSemana(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-verde)]">
                   <option value="">Seleccionar…</option>
@@ -259,7 +265,12 @@ export default function AttendanceEntry() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Tipo de sesión</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  Tipo de sesión
+                  <Tooltip content="TP = Tutoría Pedagógica (sesión sincrónica del grupo con el/la tutor/a). SE = Sesión con Experto (charla magistral para todos los grupos).">
+                    <HelpCircle size={12} className="text-gray-400 cursor-help" />
+                  </Tooltip>
+                </label>
                 <div className="flex gap-3">
                   {['TP', 'SE'].map(t => (
                     <button key={t} onClick={() => setTipoSesion(t)}
@@ -331,6 +342,7 @@ export default function AttendanceEntry() {
                         key={p.rut}
                         participant={p}
                         estado={estados[p.rut]}
+                        observacion={observaciones[p.rut] || ''}
                         onEstadoChange={handleEstadoChange}
                         onObservacionChange={handleObservacionChange}
                         config={config}

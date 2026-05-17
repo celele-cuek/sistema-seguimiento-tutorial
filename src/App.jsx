@@ -2,6 +2,7 @@ import { useState, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { ConfigProvider } from './contexts/ConfigContext.jsx';
+import { ViewAsProvider } from './contexts/ViewAsContext.jsx';
 import Sidebar from './components/layout/Sidebar.jsx';
 
 // Pages — eager load auth pages, lazy load the rest
@@ -87,6 +88,7 @@ export default function App() {
     <BrowserRouter basename="/sistema-seguimiento-tutorial">
       <AuthProvider>
         <ConfigProvider>
+        <ViewAsProvider>
           <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />
@@ -199,6 +201,7 @@ export default function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+        </ViewAsProvider>
         </ConfigProvider>
       </AuthProvider>
     </BrowserRouter>

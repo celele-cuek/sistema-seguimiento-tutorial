@@ -2,10 +2,11 @@ import { useState } from 'react';
 import StatusButton from './StatusButton.jsx';
 import NovedadCounter from './NovedadCounter.jsx';
 import Badge from '../ui/Badge.jsx';
-import { calcPctSesion } from '../../lib/utils.js';
-import { calcAlertaAsistencia } from '../../lib/utils.js';
+import Tooltip from '../ui/Tooltip.jsx';
+import { calcPctSesion, calcAlertaAsistencia } from '../../lib/utils.js';
+import { HelpCircle } from 'lucide-react';
 
-export default function AttendanceRow({ participant, estado, onEstadoChange, onObservacionChange, config, novedades = [] }) {
+export default function AttendanceRow({ participant, estado, observacion = '', onEstadoChange, onObservacionChange, config, novedades = [] }) {
   const [showTime, setShowTime] = useState(estado?.estado === 'R' || estado?.estado === 'J');
 
   function handleEstado(newEstado) {
@@ -45,22 +46,26 @@ export default function AttendanceRow({ participant, estado, onEstadoChange, onO
       </td>
       <td className="px-3 py-2 w-32">
         {showTime && (
-          <input
-            type="time"
-            value={estado?.hora_evento || ''}
-            onChange={handleTimeChange}
-            className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]"
-          />
+          <Tooltip content="Hora en que ocurrió el retiro o la justificación. Determina el % de asistencia: si fue dentro de la 1ª hora → 0%, después → 50%.">
+            <input
+              type="time"
+              value={estado?.hora_evento || ''}
+              onChange={handleTimeChange}
+              className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]"
+            />
+          </Tooltip>
         )}
       </td>
-      <td className="px-3 py-2 w-40">
-        <input
-          type="text"
-          value={estado?.observacion || ''}
-          onChange={e => onObservacionChange?.(participant.rut, e.target.value)}
-          placeholder="Observación…"
-          className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]"
-        />
+      <td className="px-3 py-2 w-44">
+        <Tooltip content="Texto libre. Si escribes algo aquí, se crea automáticamente una novedad en el registro del participante para trazabilidad y seguimiento.">
+          <input
+            type="text"
+            value={observacion}
+            onChange={e => onObservacionChange?.(participant.rut, e.target.value)}
+            placeholder="Observación…"
+            className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]"
+          />
+        </Tooltip>
       </td>
       <td className="px-3 py-2 text-right">
         <div className="flex items-center justify-end gap-1.5">

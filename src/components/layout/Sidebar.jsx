@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import {
   LayoutDashboard, ClipboardList, Grid3X3, MessageSquare, Upload,
   Users, BarChart3, AlertTriangle, FileText, Settings, Database,
@@ -36,12 +37,19 @@ function SidebarSection({ title, children }) {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { auth, signOut, hasRole } = useAuth();
+  const { viewAs } = useViewAs();
   const navigate = useNavigate();
 
   function handleSignOut() {
     signOut();
     navigate('/login');
   }
+
+  // When viewAs is set, simulate that role's navigation
+  const canSee = (role) => viewAs ? viewAs === role : hasRole(role);
+  const showTutor = canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD')));
+  const showCoord = canSee('COORD') || (!viewAs && (hasRole('ASISTENTE')));
+  const showAdmin = !viewAs && hasRole('ADMIN');
 
   return (
     <aside
@@ -63,7 +71,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5">
-        {(hasRole('TUTOR')) && (
+        {showTutor && (
           <SidebarSection title={collapsed ? '' : 'Mi aula'}>
             <NavItem to="/tutor/dashboard" icon={LayoutDashboard} label="Tablero" />
             <NavItem to="/tutor/attendance" icon={ClipboardList} label="Asistencia" />
@@ -73,17 +81,17 @@ export default function Sidebar({ collapsed, onToggle }) {
           </SidebarSection>
         )}
 
-        {(hasRole('COORD') || hasRole('ASISTENTE')) && (
+        {(showCoord || (!viewAs && (hasRole('COORD') || hasRole('ASISTENTE')))) && (
           <SidebarSection title={collapsed ? '' : 'Coordinación'}>
             <NavItem to="/coord/panel" icon={BarChart3} label="Panel general" />
             <NavItem to="/coord/alerts" icon={AlertTriangle} label="Alertas críticas" />
             <NavItem to="/coord/nomina" icon={Users} label="Nómina" />
             <NavItem to="/coord/team" icon={UserCog} label="Equipo tutores" />
-            {hasRole('COORD') && <NavItem to="/coord/reports" icon={FileText} label="Informes PDF" />}
+            {(!viewAs && hasRole('COORD')) || viewAs === 'COORD' ? <NavItem to="/coord/reports" icon={FileText} label="Informes PDF" /> : null}
           </SidebarSection>
         )}
 
-        {hasRole('ADMIN') && (
+        {showAdmin && (
           <SidebarSection title={collapsed ? '' : 'Administración'}>
             <NavItem to="/admin/config" icon={Settings} label="Configuración" />
             <NavItem to="/admin/nomina" icon={BookOpen} label="Nómina masiva" />
