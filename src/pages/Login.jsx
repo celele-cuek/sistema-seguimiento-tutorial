@@ -14,7 +14,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && auth && !auth.denied) {
-      const dest = redirectForRoles(auth.roles);
+      const dest = redirectForRoles(auth.roles, auth.bootstrap);
       navigate(dest, { replace: true });
     }
     if (!loading && auth?.denied) {
@@ -22,7 +22,8 @@ export default function Login() {
     }
   }, [auth, loading, navigate]);
 
-  function redirectForRoles(roles = []) {
+  function redirectForRoles(roles = [], bootstrap = false) {
+    if (bootstrap && roles.includes('ADMIN')) return '/setup';
     if (from && from !== '/login' && from !== '/') return from;
     if (roles.includes('TUTOR')) return '/tutor/dashboard';
     if (roles.includes('COORD')) return '/coord/panel';

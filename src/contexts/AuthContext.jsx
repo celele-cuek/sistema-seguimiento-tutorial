@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { readSheet, setToken } from '../lib/sheetsApi.js';
+import { USUARIOS_SEED } from '../lib/seedData.js';
 
 const AuthContext = createContext(null);
 
@@ -12,8 +13,15 @@ export function AuthProvider({ children }) {
     sessionStorage.setItem('gsi_token', token);
     try {
       const usuarios = await readSheet('USUARIOS');
-      const match = usuarios.find(u =>
-        u.correo?.toLowerCase() === email.toLowerCase() && u.activo !== 'FALSE'
+
+      // Bootstrap mode: if sheet is empty, fall back to seed data so the
+      // admin can log in and run /setup to initialize the system.
+      const source = usuarios.length === 0 ? USUARIOS_SEED : usuarios;
+      const isBootstrap = usuarios.length === 0;
+
+      const match = source.find(u =>
+        u.correo?.toLowerCase() === email.toLowerCase() &&
+        (isBootstrap || u.activo !== 'FALSE')
       );
       if (!match) {
         return { denied: true, email };
@@ -29,6 +37,7 @@ export function AuthProvider({ children }) {
         correoZoom: match.correo_zoom || '',
         token,
         denied: false,
+        bootstrap: isBootstrap,
       };
     } catch (err) {
       console.error('Error cargando perfil:', err);
