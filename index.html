@@ -9,6 +9,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      // Restore path redirected via 404.html
+      (function() {
+        var params = new URLSearchParams(window.location.search);
+        var p = params.get('p');
+        if (!p) return;
+        params.delete('p');
+        var q = params.get('q'); params.delete('q');
+        var h = params.get('h'); params.delete('h');
+        var url = '/sistema-seguimiento-tutorial' + p
+          + (q ? '?' + decodeURIComponent(q) : '')
+          + (params.toString() ? (q ? '&' : '?') + params.toString() : '')
+          + (h ? '#' + decodeURIComponent(h) : '');
+        window.history.replaceState(null, null, url);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
