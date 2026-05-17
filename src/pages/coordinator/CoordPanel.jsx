@@ -33,11 +33,13 @@ export default function CoordPanel() {
     finally { setLoading(false); }
   }
 
+  const normPct = (v) => { const n = Number(v) || 0; return n > 1 ? n / 100 : n; };
+
   function getGrupoStats(grupoId) {
     const gRes = resumen.filter(r => r.grupo === grupoId);
     const gParts = participantes.filter(p => p.grupo === grupoId);
     if (!gRes.length) return { pct: null, criticos: 0, alertas: 0, total: gParts.length, alerta_max: 'OK' };
-    const pct = gRes.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / gRes.length;
+    const pct = gRes.reduce((s, r) => s + normPct(r.pct_asistencia), 0) / gRes.length;
     const criticos = gRes.filter(r => r.alerta_max === 'CRÍTICO').length;
     const alertas = gRes.filter(r => r.alerta_max === 'ALERTA').length;
     const alerta_max = criticos > 0 ? 'CRÍTICO' : alertas > 0 ? 'ALERTA' : 'OK';

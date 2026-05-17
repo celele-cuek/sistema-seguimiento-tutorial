@@ -102,6 +102,17 @@ export async function clearAndWriteSheet(sheetName, rows) {
   return apiFetch(url, { method: 'PUT', body: JSON.stringify({ values }) });
 }
 
+export async function batchUpdateRows(sheetName, updates) {
+  if (!updates.length) return;
+  const headers = await getSheetHeaders(sheetName);
+  const data = updates.map(({ rowIndex, rowData }) => ({
+    range: `${sheetName}!A${rowIndex}`,
+    values: [objectToRow(headers, rowData)],
+  }));
+  const url = `${BASE_URL}/${SHEETS_ID}/values:batchUpdate?valueInputOption=USER_ENTERED`;
+  return apiFetch(url, { method: 'POST', body: JSON.stringify({ data }) });
+}
+
 export async function batchUpdate(updates) {
   const data = updates.map(({ sheetName, rowIndex, rowData, headers }) => ({
     range: `${sheetName}!A${rowIndex}`,

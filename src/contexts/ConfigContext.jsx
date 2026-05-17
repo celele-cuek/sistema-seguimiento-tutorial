@@ -28,9 +28,11 @@ export function ConfigProvider({ children }) {
       const rows = await readSheet('CONFIGURACION');
       if (rows.length > 0) {
         const raw = rows[0];
+        // Only override defaults with non-empty values from the sheet
+        const nonEmpty = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== '' && v !== undefined));
         setConfig({
           ...DEFAULT_CONFIG,
-          ...raw,
+          ...nonEmpty,
           umbral_critico: Number(raw.umbral_critico) || DEFAULT_CONFIG.umbral_critico,
           umbral_alerta: Number(raw.umbral_alerta) || DEFAULT_CONFIG.umbral_alerta,
           umbral_justificaciones: Number(raw.umbral_justificaciones) || DEFAULT_CONFIG.umbral_justificaciones,

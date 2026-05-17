@@ -4,17 +4,19 @@ import { useConfig } from '../../contexts/ConfigContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import AttendanceRow from '../../components/attendance/AttendanceRow.jsx';
 import Badge from '../../components/ui/Badge.jsx';
-import { readSheet, batchWrite, writeRow, updateRow } from '../../lib/sheetsApi.js';
+import { readSheet, batchWrite, batchUpdateRows, writeRow, updateRow } from '../../lib/sheetsApi.js';
 import { calcPctSesion, generateId, nowISO, pctDisplay } from '../../lib/utils.js';
 import { calcResumenParticipante, nivelMax } from '../../lib/alertEngine.js';
 import { CheckCircle, Save, ChevronRight, Users, ClipboardCheck, HelpCircle } from 'lucide-react';
 import Tooltip from '../../components/ui/Tooltip.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const STEPS = ['Seleccionar sesión', 'Registrar asistencia', 'Confirmar y guardar'];
 
 export default function AttendanceEntry() {
   const { auth } = useAuth();
   const { config } = useConfig();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [semana, setSemana] = useState('');
   const [tipoSesion, setTipoSesion] = useState('TP');
@@ -23,6 +25,7 @@ export default function AttendanceEntry() {
   const [estados, setEstados] = useState({});
   const [observaciones, setObservaciones] = useState({});
   const [novedadesMap, setNovedadesMap] = useState({});
+  const [existingRows, setExistingRows] = useState({}); // rut → _rowIndex of existing ASISTENCIA record
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -38,6 +41,7 @@ export default function AttendanceEntry() {
       try {
         const d = JSON.parse(draft);
         if (d.estados) setEstados(d.estados);
+        if (d.observaciones) setObservaciones(d.observaciones);
         if (d.semana) setSemana(d.semana);
         if (d.grupo) setGrupo(d.grupo);
         if (d.tipoSesion) setTipoSesion(d.tipoSesion);
@@ -46,8 +50,8 @@ export default function AttendanceEntry() {
   }, []);
 
   useEffect(() => {
-    sessionStorage.setItem('attendance_draft', JSON.stringify({ estados, semana, grupo, tipoSesion }));
-  }, [estados, semana, grupo, tipoSesion]);
+    sessionStorage.setItem('attendance_draft', JSON.stringify({ estados, observaciones, semana, grupo, tipoSesion }));
+  }, [estados, observaciones, semana, grupo, tipoSesion]);
 
   async function loadParticipants() {
     if (!grupo || !semana) return;
@@ -75,10 +79,18 @@ export default function AttendanceEntry() {
       const existing = asist.filter(a => a.grupo === grupo && String(a.semana) === String(semana) && a.tipo_sesion === tipoSesion);
       if (existing.length > 0) {
         const map = {};
+        const rowMap = {};
         for (const e of existing) {
-          map[e.rut_participante] = { estado: e.estado, hora_evento: e.hora_evento, pct_sesion: Number(e.pct_sesion) };
+          // Keep only the latest record per participant (in case of existing duplicates)
+          if (!rowMap[e.rut_participante] || e._rowIndex > rowMap[e.rut_participante]) {
+            map[e.rut_participante] = { estado: e.estado, hora_evento: e.hora_evento, pct_sesion: Number(e.pct_sesion) };
+            rowMap[e.rut_participante] = e._rowIndex;
+          }
         }
         setEstados(map);
+        setExistingRows(rowMap);
+      } else {
+        setExistingRows({});
       }
     } catch (err) {
       setError('Error cargando participantes: ' + err.message);
@@ -108,16 +120,19 @@ export default function AttendanceEntry() {
     setError('');
     try {
       const now = nowISO();
-      const registros = participants.map(p => {
+      const toUpdate = [];
+      const toInsert = [];
+      for (const p of participants) {
         const e = estados[p.rut] || {};
-        return {
+        if (!e.estado) continue;
+        const row = {
           id: generateId(),
           rut_participante: p.rut,
           grupo,
           semana: String(semana),
           tipo_sesion: tipoSesion,
           fecha_sesion: now.split('T')[0],
-          estado: e.estado || '',
+          estado: e.estado,
           hora_evento: e.hora_evento || '',
           pct_sesion: String(e.pct_sesion ?? ''),
           registrado_por: auth.email,
@@ -126,9 +141,16 @@ export default function AttendanceEntry() {
           fecha_edicion: '',
           editado_por: '',
         };
-      }).filter(r => r.estado);
+        if (existingRows[p.rut]) {
+          toUpdate.push({ rowIndex: existingRows[p.rut], rowData: { ...row, editado: 'TRUE', fecha_edicion: now, editado_por: auth.email } });
+        } else {
+          toInsert.push(row);
+        }
+      }
 
-      await batchWrite('ASISTENCIA', registros);
+      if (toUpdate.length) await batchUpdateRows('ASISTENCIA', toUpdate);
+      if (toInsert.length) await batchWrite('ASISTENCIA', toInsert);
+      const registros = [...toUpdate.map(u => u.rowData), ...toInsert];
 
       // Handle novedades for participants with observations
       const novRows = [];
@@ -167,6 +189,7 @@ export default function AttendanceEntry() {
       });
 
       sessionStorage.removeItem('attendance_draft');
+      setExistingRows({});
       setSaved(true);
       setStep(2);
     } catch (err) {
@@ -194,10 +217,10 @@ export default function AttendanceEntry() {
         contador_r: calc.contador_r,
         contador_f: calc.contador_f,
         alerta_asistencia: calc.alerta_asistencia,
-        alerta_justificaciones: calc.alerta_justificaciones ? 'TRUE' : 'FALSE',
-        alerta_retiros: calc.alerta_retiros ? 'TRUE' : 'FALSE',
-        alerta_logro: 'FALSE',
-        alerta_moodle: 'FALSE',
+        alerta_justificaciones: calc.alerta_justificaciones ? 'ALERTA' : 'OK',
+        alerta_retiros: calc.alerta_retiros ? 'ALERTA' : 'OK',
+        alerta_logro: 'OK',
+        alerta_moodle: 'OK',
         alerta_max: calc.alerta_max,
         ultima_sesion_registrada: calc.ultima_sesion_registrada,
         fecha_ultimo_registro: now.split('T')[0],
@@ -383,7 +406,7 @@ export default function AttendanceEntry() {
                 className="px-5 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                 Nueva sesión
               </button>
-              <button onClick={() => { window.location.href = '/tutor/grid'; }}
+              <button onClick={() => navigate('/tutor/grid')}
                 className="px-5 py-2 rounded-xl text-white text-sm font-medium"
                 style={{ background: 'var(--color-verde)' }}>
                 Ver grilla histórica

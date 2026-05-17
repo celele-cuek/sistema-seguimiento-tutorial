@@ -45,10 +45,13 @@ export default function TutorDashboard() {
   }
 
   const { participantes, resumen, novedades } = data;
+  // Normalize pct_asistencia: sheet may store fraction (0-1) or integer (0-100)
+  const normPct = (v) => { const n = Number(v) || 0; return n > 1 ? n / 100 : n; };
+
   const criticos = resumen.filter(r => r.alerta_max === 'CRÍTICO');
   const enAlerta = resumen.filter(r => r.alerta_max === 'ALERTA');
   const pctGlobal = resumen.length
-    ? resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / resumen.length
+    ? resumen.reduce((s, r) => s + normPct(r.pct_asistencia), 0) / resumen.length
     : null;
 
   const alertasPendientes = novedades.filter(n => n.estado_caso === 'Pendiente' || n.estado_caso === 'En seguimiento');
@@ -57,7 +60,7 @@ export default function TutorDashboard() {
   const semanaData = semanas.map(s => {
     const enSemana = resumen.filter(r => Number(r.ultima_sesion_registrada) >= s);
     const avg = enSemana.length
-      ? enSemana.reduce((acc, r) => acc + (Number(r.pct_asistencia) || 0), 0) / enSemana.length
+      ? enSemana.reduce((acc, r) => acc + normPct(r.pct_asistencia), 0) / enSemana.length
       : 0;
     return { semana: `S${s}`, pct: Math.round(avg * 100) };
   });
