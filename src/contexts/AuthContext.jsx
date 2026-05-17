@@ -11,38 +11,46 @@ export function AuthProvider({ children }) {
   const loadUserProfile = useCallback(async (email, token) => {
     setToken(token);
     sessionStorage.setItem('gsi_token', token);
+
+    // Read USUARIOS sheet — fall back to empty array on any API error
+    let usuarios = [];
     try {
-      const usuarios = await readSheet('USUARIOS');
-
-      // Bootstrap mode: if sheet is empty, fall back to seed data so the
-      // admin can log in and run /setup to initialize the system.
-      const source = usuarios.length === 0 ? USUARIOS_SEED : usuarios;
-      const isBootstrap = usuarios.length === 0;
-
-      const match = source.find(u =>
-        u.correo?.toLowerCase() === email.toLowerCase() &&
-        (isBootstrap || u.activo !== 'FALSE')
-      );
-      if (!match) {
-        return { denied: true, email };
-      }
-      const roles = match.roles?.split(',').map(r => r.trim()).filter(Boolean) || [];
-      const grupos = match.grupos?.split(',').map(g => g.trim()).filter(Boolean) || [];
-      return {
-        email: match.correo,
-        nombre: match.nombre_completo,
-        rut: match.rut,
-        roles,
-        grupos,
-        correoZoom: match.correo_zoom || '',
-        token,
-        denied: false,
-        bootstrap: isBootstrap,
-      };
+      usuarios = await readSheet('USUARIOS');
     } catch (err) {
-      console.error('Error cargando perfil:', err);
-      throw err;
+      console.warn('No se pudo leer USUARIOS desde Sheets, usando modo bootstrap:', err.message);
     }
+
+    // Filter to rows that have a valid correo field and are active
+    const validUsers = usuarios.filter(u => u.correo && u.correo.trim() !== '' && u.activo !== 'FALSE');
+
+    // Bootstrap mode: if no valid users in Sheets, fall back to seed data
+    const isBootstrap = validUsers.length === 0;
+    const source = isBootstrap ? USUARIOS_SEED : validUsers;
+
+    console.log(`Auth: ${isBootstrap ? 'BOOTSTRAP (seed)' : `${validUsers.length} users from Sheets`}, buscando: ${email}`);
+
+    const match = source.find(u =>
+      u.correo?.toLowerCase().trim() === email?.toLowerCase().trim()
+    );
+
+    if (!match) {
+      console.warn(`Auth: correo no encontrado → denied (${email})`);
+      return { denied: true, email };
+    }
+
+    const roles = (match.roles || '').split(',').map(r => r.trim()).filter(Boolean);
+    const grupos = (match.grupos || '').split(',').map(g => g.trim()).filter(Boolean);
+    return {
+      email: match.correo,
+      nombre: match.nombre_completo,
+      rut: match.rut,
+      roles,
+      grupos,
+      correoZoom: match.correo_zoom || '',
+      token,
+      denied: false,
+      bootstrap: isBootstrap,
+    };
   }, []);
 
   const signIn = useCallback(async (credential, token, emailOverride) => {
@@ -64,7 +72,8 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Sign in error:', err);
-      setAuth(false);
+      // Surface the error so the user sees it on the login page
+      setAuth({ error: err.message });
     } finally {
       setLoading(false);
     }

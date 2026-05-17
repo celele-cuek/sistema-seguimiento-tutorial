@@ -13,12 +13,16 @@ export default function Login() {
   const from = location.state?.from || '/';
 
   useEffect(() => {
-    if (!loading && auth && !auth.denied) {
+    if (!loading && auth && !auth.denied && !auth.error) {
       const dest = redirectForRoles(auth.roles, auth.bootstrap);
       navigate(dest, { replace: true });
     }
     if (!loading && auth?.denied) {
       navigate('/access-denied', { replace: true, state: { email: auth.email } });
+    }
+    if (!loading && auth?.error) {
+      setError(`Error del sistema: ${auth.error}`);
+      setSigningIn(false);
     }
   }, [auth, loading, navigate]);
 
