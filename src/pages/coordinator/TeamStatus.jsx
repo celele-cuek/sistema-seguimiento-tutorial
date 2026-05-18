@@ -8,6 +8,7 @@ import { CheckCircle, AlertTriangle, HelpCircle } from 'lucide-react';
 
 export default function TeamStatus() {
   const [logs, setLogs] = useState([]);
+  const [asistencia, setAsistencia] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
@@ -15,22 +16,36 @@ export default function TeamStatus() {
   async function load() {
     setLoading(true);
     try {
-      const logData = await readSheet('LOG');
+      const [logData, asistData] = await Promise.all([readSheet('LOG'), readSheet('ASISTENCIA')]);
       setLogs(logData);
+      setAsistencia(asistData);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }
 
-  const tutores = USUARIOS_SEED.filter(u => u.roles.includes('TUTOR'));
+  const tutores = USUARIOS_SEED.filter((u, i, arr) =>
+    u.roles.includes('TUTOR') && arr.findIndex(x => x.correo === u.correo) === i
+  );
 
   function getLastActivity(correo) {
-    const userLogs = logs.filter(l => l.usuario === correo).sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-    return userLogs[0] || null;
+    return logs.filter(l => l.usuario === correo).sort((a, b) => new Date(b.datetime) - new Date(a.datetime))[0] || null;
+  }
+
+  function getPuntualidad(correo) {
+    const grupos_t = (USUARIOS_SEED.find(u => u.correo === correo)?.grupos || '').split(',').filter(Boolean);
+    const registros = asistencia.filter(a => grupos_t.includes(a.grupo) && a.registrado_por === correo);
+    let tardios = 0, aTiempo = 0;
+    registros.forEach(a => {
+      if (!a.fecha_sesion || !a.fecha_registro) return;
+      const horas = (new Date(a.fecha_registro) - new Date(a.fecha_sesion + 'T23:59:59')) / 3600000;
+      if (horas > 24) tardios++; else aTiempo++;
+    });
+    const ultReg = registros.sort((a, b) => b.fecha_registro?.localeCompare(a.fecha_registro))[0];
+    return { tardios, aTiempo, total: registros.length, ultReg };
   }
 
   const today = new Date();
   const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
-
   const activos = tutores.filter(t => { const a = getLastActivity(t.correo); return a && new Date(a.datetime) > weekAgo; }).length;
   const inactivos = tutores.length - activos;
 
@@ -87,8 +102,13 @@ export default function TeamStatus() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs">Acción</th>
                   <th className="px-4 py-3 text-center text-xs">
-                    <Tooltip content="Verde: activo en los últimos 7 días. Naranja: sin actividad reciente — considerar contacto para verificar si está registrando en el sistema.">
-                      <span className="flex items-center justify-center gap-1 cursor-help">Estado <HelpCircle size={10} /></span>
+                    <Tooltip content="Verde: activo en los últimos 7 días. Naranja: sin actividad reciente.">
+                      <span className="flex items-center justify-center gap-1 cursor-help">Actividad <HelpCircle size={10} /></span>
+                    </Tooltip>
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs">
+                    <Tooltip content="Puntualidad en el registro de asistencia. El plazo máximo es 24 horas desde la realización de la sesión.">
+                      <span className="flex items-center justify-center gap-1 cursor-help">Puntualidad 24h <HelpCircle size={10} /></span>
                     </Tooltip>
                   </th>
                 </tr>
@@ -100,6 +120,7 @@ export default function TeamStatus() {
                   const isActive = lastDate && lastDate > weekAgo;
                   const grupos = t.grupos?.split(',').filter(Boolean) || [];
                   const highLoad = grupos.length >= 4;
+                  const punt = getPuntualidad(t.correo);
                   return (
                     <tr key={t.correo} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50' : 'bg-white'}`}>
                       <td className="px-4 py-3">
@@ -110,7 +131,7 @@ export default function TeamStatus() {
                         <div className="flex gap-1 flex-wrap items-center">
                           {grupos.map(g => <span key={g} className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono">{g}</span>)}
                           {highLoad && (
-                            <Tooltip content={`Este tutor/a tiene ${grupos.length} grupos asignados — carga operacional alta. Considera redistribuir.`}>
+                            <Tooltip content={`Este tutor/a tiene ${grupos.length} grupos asignados — carga operacional alta.`}>
                               <AlertTriangle size={13} className="text-amber-500 cursor-help" />
                             </Tooltip>
                           )}
@@ -119,12 +140,27 @@ export default function TeamStatus() {
                       <td className="px-4 py-3 text-xs text-gray-500">{act ? formatDateTime(act.datetime) : 'Sin actividad'}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{act?.accion?.replace(/_/g, ' ') || '—'}</td>
                       <td className="px-4 py-3 text-center">
-                        <Tooltip content={isActive ? 'Activo — ha registrado actividad en los últimos 7 días.' : 'Sin actividad reciente — no se detecta uso del sistema en los últimos 7 días.'}>
+                        <Tooltip content={isActive ? 'Activo en los últimos 7 días.' : 'Sin actividad reciente.'}>
                           {isActive
                             ? <CheckCircle size={16} className="text-green-500 inline-block" />
                             : <AlertTriangle size={16} className="text-amber-500 inline-block" />
                           }
                         </Tooltip>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {punt.total === 0 ? (
+                          <span className="text-xs text-gray-400">Sin registros</span>
+                        ) : punt.tardios === 0 ? (
+                          <Tooltip content={`${punt.aTiempo} sesión(es) registradas dentro de las 24h.`}>
+                            <CheckCircle size={16} className="text-green-500 inline-block" />
+                          </Tooltip>
+                        ) : (
+                          <Tooltip content={`${punt.tardios} registro(s) fuera de plazo (>24h desde la sesión). ${punt.aTiempo} a tiempo.`}>
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                              <AlertTriangle size={11} />{punt.tardios} tardío{punt.tardios > 1 ? 's' : ''}
+                            </span>
+                          </Tooltip>
+                        )}
                       </td>
                     </tr>
                   );

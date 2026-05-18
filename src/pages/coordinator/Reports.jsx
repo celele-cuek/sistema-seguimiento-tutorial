@@ -104,19 +104,37 @@ export default function Reports() {
         }
       });
 
+      // Para cada tutor, obtener todos sus registros de asistencia y calcular puntualidad
       const estadoTutores = tutores
-        .filter((t, i, arr) => arr.findIndex(x => x.correo === t.correo) === i) // únicos por correo
+        .filter((t, i, arr) => arr.findIndex(x => x.correo === t.correo) === i)
         .map(t => {
-          const ult = asistPorTutor[t.correo];
-          const logTutor = logs.filter(l => l.usuario === t.correo && l.accion === 'GUARDAR_ASISTENCIA')
-            .sort((a, b) => b.datetime.localeCompare(a.datetime))[0];
+          const grupos_t = (t.grupos || '').split(',').filter(Boolean);
+          const registros = asistencia.filter(a => grupos_t.includes(a.grupo) && a.registrado_por === t.correo);
+          const ultReg = registros.sort((a, b) => b.fecha_registro?.localeCompare(a.fecha_registro))[0];
+
+          let tardios = 0, aTiempo = 0;
+          registros.forEach(a => {
+            if (!a.fecha_sesion || !a.fecha_registro) return;
+            const sesionFin = new Date(a.fecha_sesion + 'T23:59:59');
+            const registro = new Date(a.fecha_registro);
+            const horas = (registro - sesionFin) / 3600000;
+            if (horas > 24) tardios++;
+            else aTiempo++;
+          });
+
+          const estado = !ultReg ? 'Sin registros'
+            : tardios > 0 ? `TARDÍO (${tardios} vez${tardios > 1 ? 'es' : ''})`
+            : 'A tiempo';
+
           return {
-            'Tutor/a':             t.nombre_completo,
-            'Correo':              t.correo,
-            'Grupos':              t.grupos,
-            'Último registro asistencia': ult ? `S${ult.semana} ${ult.tipo_sesion} (${ult.fecha_sesion || ult.fecha_registro?.split('T')[0] || ''})` : 'Sin registros',
-            'Fecha último registro':      logTutor ? logTutor.datetime.split('T')[0] : '',
-            'Estado':              logTutor ? (new Date() - new Date(logTutor.datetime) > 10 * 24 * 3600 * 1000 ? 'ATRASADO' : 'Al día') : 'Sin actividad',
+            'Tutor/a':                    t.nombre_completo,
+            'Correo':                     t.correo,
+            'Grupos':                     t.grupos,
+            'Última sesión registrada':   ultReg ? `S${ultReg.semana} ${ultReg.tipo_sesion} — ${ultReg.fecha_sesion || ''}` : '—',
+            'Fecha registro':             ultReg ? ultReg.fecha_registro?.split('T')[0] : '—',
+            'Registros a tiempo (≤24h)':  aTiempo,
+            'Registros tardíos (>24h)':   tardios,
+            'Estado puntualidad':         estado,
           };
         });
 

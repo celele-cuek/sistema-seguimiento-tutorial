@@ -303,6 +303,15 @@ export default function AttendanceEntry() {
                   onChange={e => setFechaSesion(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-verde)]"
                 />
+                {fechaSesion && (() => {
+                  const horasDesde = (Date.now() - new Date(fechaSesion + 'T23:59:59').getTime()) / 3600000;
+                  if (horasDesde > 24) return (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                      Esta sesión se realizó hace más de 24 horas. El registro tardío quedará marcado en el sistema.
+                    </p>
+                  );
+                  return null;
+                })()}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
