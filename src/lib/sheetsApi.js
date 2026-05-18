@@ -87,7 +87,7 @@ export async function batchWrite(sheetName, rows) {
   if (!rows.length) return;
   const headers = await getSheetHeaders(sheetName);
   const values = rows.map(r => objectToRow(headers, r));
-  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
   return apiFetch(url, { method: 'POST', body: JSON.stringify({ values }) });
 }
 
@@ -98,7 +98,7 @@ export async function clearAndWriteSheet(sheetName, rows) {
   await apiFetch(clearUrl, { method: 'POST', body: JSON.stringify({}) });
   if (!rows.length) return;
   const values = rows.map(r => objectToRow(headers, r));
-  const url = `${BASE_URL}/${SHEETS_ID}/values/${sn}!A2?valueInputOption=USER_ENTERED`;
+  const url = `${BASE_URL}/${SHEETS_ID}/values/${sn}!A2?valueInputOption=RAW`;
   return apiFetch(url, { method: 'PUT', body: JSON.stringify({ values }) });
 }
 

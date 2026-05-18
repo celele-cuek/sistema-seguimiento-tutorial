@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import { parseFile, detectColumnMapping, processParticipantsFile, PARTICIPANTE_HEADERS } from '../../lib/csvProcessor.js';
-import { batchWrite, readSheet, writeRow } from '../../lib/sheetsApi.js';
+import { batchWrite, readSheet, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { generatePilotParticipants } from '../../lib/seedDataPilot.js';
-import { Upload, CheckCircle, AlertTriangle, Download } from 'lucide-react';
+import { Upload, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function NominaImport() {
   const { auth } = useAuth();
@@ -17,6 +16,8 @@ export default function NominaImport() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [replaceMode, setReplaceMode] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
 
   async function handleFile(e) {
     const f = e.target.files?.[0];
@@ -61,12 +62,19 @@ export default function NominaImport() {
     finally { setSaving(false); }
   }
 
-  async function handleLoadPilot() {
+  async function handleReplace() {
+    if (!result.valid.length) return;
     setSaving(true);
     setError('');
+    setConfirmReplace(false);
     try {
-      const pilot = generatePilotParticipants();
-      await batchWrite('PARTICIPANTES', pilot);
+      const toWrite = result.valid.map(({ _rowNum, _errors, ...p }) => ({
+        ...p,
+        fecha_ingreso: p.fecha_ingreso || nowISO().split('T')[0],
+        estado: 'Activo',
+      }));
+      await clearAndWriteSheet('PARTICIPANTES', toWrite);
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'REEMPLAZAR_NOMINA', entidad: 'PARTICIPANTES', grupo: '', semana: '', detalle: `${toWrite.length} participantes cargados (reemplazo completo)`, ip: '' });
       setSaved(true);
       setStep(3);
     } catch (err) { setError('Error: ' + err.message); }
@@ -80,17 +88,6 @@ export default function NominaImport() {
       <Topbar title="Importación masiva de nómina" />
       <div className="flex-1 p-6 flex flex-col gap-5 overflow-y-auto max-w-4xl">
         {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center gap-2"><AlertTriangle size={14} />{error}</div>}
-
-        {/* Pilot load */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Datos piloto de prueba</p>
-            <p className="text-sm text-amber-700">Carga 80 participantes ficticios (5 por grupo) para probar el sistema.</p>
-          </div>
-          <button onClick={handleLoadPilot} disabled={saving} className="shrink-0 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40" style={{ background: '#C8974A' }}>
-            {saving ? 'Cargando…' : 'Cargar datos piloto'}
-          </button>
-        </div>
 
         {/* Step 0: Upload */}
         <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4">
@@ -142,9 +139,30 @@ export default function NominaImport() {
                 {result.errors.length > 5 && <p className="text-xs text-red-400">…y {result.errors.length - 5} más.</p>}
               </div>
             )}
-            <button onClick={handleSave} disabled={saving || !result.valid.length} className="self-start px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-40" style={{ background: 'var(--color-verde)' }}>
-              {saving ? 'Importando…' : `Importar ${result.valid.length} participantes`}
-            </button>
+            <div className="flex flex-wrap gap-3 items-center">
+              <button onClick={handleSave} disabled={saving || !result.valid.length} className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-40" style={{ background: 'var(--color-verde)' }}>
+                {saving && !confirmReplace ? 'Importando…' : `Agregar ${result.valid.length} a nómina existente`}
+              </button>
+              <button onClick={() => setConfirmReplace(true)} disabled={saving || !result.valid.length} className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-40 bg-red-600 hover:bg-red-700">
+                <RefreshCw size={14} />
+                Reemplazar nómina completa
+              </button>
+            </div>
+
+            {confirmReplace && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col gap-3">
+                <p className="text-sm font-semibold text-red-800">¿Confirmas el reemplazo?</p>
+                <p className="text-sm text-red-700">Se borrará toda la nómina actual y se cargarán los <strong>{result.valid.length}</strong> participantes del archivo. Esta acción no se puede deshacer.</p>
+                <div className="flex gap-3">
+                  <button onClick={handleReplace} disabled={saving} className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-40">
+                    {saving ? 'Reemplazando…' : 'Sí, reemplazar'}
+                  </button>
+                  <button onClick={() => setConfirmReplace(false)} disabled={saving} className="px-4 py-2 rounded-lg text-sm border border-gray-200 text-gray-600">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
