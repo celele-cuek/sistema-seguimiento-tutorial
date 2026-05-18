@@ -56,11 +56,12 @@ export default function Setup() {
   }
 
   async function writeUsuarios() {
-    await batchWrite('USUARIOS', USUARIOS_SEED.map(u => ({
-      ...u,
-      activo: u.activo ? 'TRUE' : 'FALSE',
-      fecha_creacion: nowISO().split('T')[0],
-    })));
+    const existing = await readSheet('USUARIOS');
+    const existEmails = new Set(existing.map(u => u.correo?.toLowerCase().trim()));
+    const toWrite = USUARIOS_SEED
+      .filter(u => !existEmails.has(u.correo?.toLowerCase().trim()))
+      .map(u => ({ ...u, activo: u.activo ? 'TRUE' : 'FALSE', fecha_creacion: nowISO().split('T')[0] }));
+    if (toWrite.length) await batchWrite('USUARIOS', toWrite);
   }
 
   async function markSetupComplete() {

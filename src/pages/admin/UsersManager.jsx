@@ -3,9 +3,9 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Modal from '../../components/ui/Modal.jsx';
-import { readSheet, updateRow, writeRow } from '../../lib/sheetsApi.js';
+import { readSheet, updateRow, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Plus, Shield } from 'lucide-react';
+import { Plus, Shield, RefreshCw } from 'lucide-react';
 
 const ROLES_OPTS = ['ADMIN', 'COORD', 'TUTOR', 'ASISTENTE'];
 
@@ -16,15 +16,43 @@ export default function UsersManager() {
   const [editU, setEditU] = useState(null);
   const [newMode, setNewMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deduping, setDeduping] = useState(false);
   const blank = { correo: '', nombre_completo: '', rut: '', roles: 'TUTOR', grupos: '', activo: 'TRUE', correo_zoom: '', fecha_creacion: nowISO().split('T')[0] };
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
-    try { setUsers(await readSheet('USUARIOS')); }
+    try {
+      const all = await readSheet('USUARIOS');
+      const seen = new Set();
+      setUsers(all.filter(u => {
+        const key = u.correo?.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }));
+    }
     catch (err) { console.error(err); }
     finally { setLoading(false); }
+  }
+
+  async function handleDedup() {
+    if (!confirm('¿Eliminar usuarios duplicados de Google Sheets?')) return;
+    setDeduping(true);
+    try {
+      const all = await readSheet('USUARIOS');
+      const seen = new Set();
+      const unique = all.filter(u => {
+        const key = u.correo?.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      await clearAndWriteSheet('USUARIOS', unique);
+      await load();
+    } catch (err) { console.error(err); }
+    finally { setDeduping(false); }
   }
 
   async function handleSave() {
@@ -77,9 +105,14 @@ export default function UsersManager() {
     <div className="flex-1 flex flex-col">
       <Topbar title="Gestión de usuarios"
         actions={
+          <div className="flex gap-2">
+          <button onClick={handleDedup} disabled={deduping} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+            <RefreshCw size={14} className={deduping ? 'animate-spin' : ''} />{deduping ? 'Limpiando…' : 'Eliminar duplicados'}
+          </button>
           <button onClick={() => { setEditU({ ...blank }); setNewMode(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium" style={{ background: 'var(--color-verde)' }}>
             <Plus size={14} />Nuevo usuario
           </button>
+          </div>
         }
       />
       <div className="flex-1 p-6 overflow-y-auto">
