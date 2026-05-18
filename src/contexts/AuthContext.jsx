@@ -21,7 +21,9 @@ export function AuthProvider({ children }) {
     }
 
     // Filter to rows that have a valid correo field and are active
-    const validUsers = usuarios.filter(u => u.correo && u.correo.trim() !== '' && u.activo !== 'FALSE');
+    // activo can be 'TRUE', 'FALSE', boolean true/false, 'VERDADERO'/'FALSO' (Sheets es-locale), or empty
+    const isInactive = (v) => v === 'FALSE' || v === false || v === 'FALSO' || v === 'false';
+    const validUsers = usuarios.filter(u => u.correo && u.correo.trim() !== '' && !isInactive(u.activo));
 
     // Bootstrap mode: if no valid users in Sheets, fall back to seed data
     const isBootstrap = validUsers.length === 0;

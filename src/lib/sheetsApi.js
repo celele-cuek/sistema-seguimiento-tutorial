@@ -66,7 +66,7 @@ export async function getSheetHeaders(sheetName) {
 export async function writeRow(sheetName, rowData) {
   const headers = await getSheetHeaders(sheetName);
   const row = objectToRow(headers, rowData);
-  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
   return apiFetch(url, { method: 'POST', body: JSON.stringify({ values: [row] }) });
 }
 
@@ -74,7 +74,7 @@ export async function updateRow(sheetName, rowIndex, rowData) {
   const headers = await getSheetHeaders(sheetName);
   const row = objectToRow(headers, rowData);
   const range = `${sheetName}!A${rowIndex}`;
-  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const url = `${BASE_URL}/${SHEETS_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`;
   return apiFetch(url, { method: 'PUT', body: JSON.stringify({ values: [row] }) });
 }
 
