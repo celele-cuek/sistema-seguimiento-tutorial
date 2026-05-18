@@ -25,6 +25,7 @@ export default function AttendanceEntry() {
   const [estados, setEstados] = useState({});
   const [observaciones, setObservaciones] = useState({});
   const [novedadesMap, setNovedadesMap] = useState({});
+  const [fechaSesion, setFechaSesion] = useState(nowISO().split('T')[0]);
   const [existingRows, setExistingRows] = useState({}); // rut → _rowIndex of existing ASISTENCIA record
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,12 +46,13 @@ export default function AttendanceEntry() {
         if (d.semana) setSemana(d.semana);
         if (d.grupo) setGrupo(d.grupo);
         if (d.tipoSesion) setTipoSesion(d.tipoSesion);
+        if (d.fechaSesion) setFechaSesion(d.fechaSesion);
       } catch {}
     }
   }, []);
 
   useEffect(() => {
-    sessionStorage.setItem('attendance_draft', JSON.stringify({ estados, observaciones, semana, grupo, tipoSesion }));
+    sessionStorage.setItem('attendance_draft', JSON.stringify({ estados, observaciones, semana, grupo, tipoSesion, fechaSesion }));
   }, [estados, observaciones, semana, grupo, tipoSesion]);
 
   async function loadParticipants() {
@@ -131,7 +133,7 @@ export default function AttendanceEntry() {
           grupo,
           semana: String(semana),
           tipo_sesion: tipoSesion,
-          fecha_sesion: now.split('T')[0],
+          fecha_sesion: fechaSesion,
           estado: e.estado,
           hora_evento: e.hora_evento || '',
           pct_sesion: String(e.pct_sesion ?? ''),
@@ -289,6 +291,21 @@ export default function AttendanceEntry() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  Fecha de realización
+                  <Tooltip content="Fecha en que se realizó la sesión. Por defecto es hoy — ajusta si estás registrando una sesión pasada.">
+                    <HelpCircle size={12} className="text-gray-400 cursor-help" />
+                  </Tooltip>
+                </label>
+                <input
+                  type="date"
+                  value={fechaSesion}
+                  max={nowISO().split('T')[0]}
+                  onChange={e => setFechaSesion(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-verde)]"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                   Tipo de sesión
                   <Tooltip content="TP = Tutoría Pedagógica (sesión sincrónica del grupo con el/la tutor/a). SE = Sesión con Experto (charla magistral para todos los grupos).">
                     <HelpCircle size={12} className="text-gray-400 cursor-help" />
@@ -320,7 +337,7 @@ export default function AttendanceEntry() {
           <div className="flex flex-col gap-4">
             <div className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold text-gray-700">Grupo {grupo} · Semana {semana} · {tipoSesion}</div>
+                <div className="text-sm font-semibold text-gray-700">Grupo {grupo} · Semana {semana} · {tipoSesion} · {fechaSesion}</div>
                 <span className="text-xs text-gray-400">{participants.length} participantes</span>
               </div>
               <div className="flex items-center gap-3">

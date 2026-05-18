@@ -5,8 +5,9 @@ import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
 import { generatePDF, generateInformeText } from '../../lib/pdfGenerator.js';
 import { pctDisplay, formatDate } from '../../lib/utils.js';
-import { GRUPOS_SEED } from '../../lib/seedData.js';
-import { FileText, Download, HelpCircle } from 'lucide-react';
+import { GRUPOS_SEED, USUARIOS_SEED } from '../../lib/seedData.js';
+import * as XLSX from 'xlsx';
+import { FileText, Download, HelpCircle, FileSpreadsheet } from 'lucide-react';
 
 export default function Reports() {
   const { config } = useConfig();
@@ -16,6 +17,7 @@ export default function Reports() {
   const [alcance, setAlcance] = useState('todos');
   const [grupoSel, setGrupoSel] = useState('A01');
   const [loading, setLoading] = useState(false);
+  const [loadingXls, setLoadingXls] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [conclusiones, setConclusiones] = useState([]);
 
@@ -37,6 +39,105 @@ export default function Reports() {
     finally { setLoading(false); }
   }
 
+  async function handleExportContactosXLS() {
+    setLoadingXls(true);
+    try {
+      const [participantes, resumen, asistencia, logs] = await Promise.all([
+        readSheet('PARTICIPANTES'),
+        readSheet('RESUMEN_PARTICIPANTE'),
+        readSheet('ASISTENCIA'),
+        readSheet('LOG'),
+      ]);
+
+      // Mapa tutor por grupo
+      const tutorPorGrupo = {};
+      GRUPOS_SEED.forEach(g => { tutorPorGrupo[g.id] = g.tutor_nombre; });
+
+      // Mapa resumen por rut
+      const resumenMap = {};
+      resumen.forEach(r => { resumenMap[r.rut] = r; });
+
+      // Hoja 1: participantes CRÍTICO o ALERTA con datos de contacto
+      const razones = (r) => {
+        const motivos = [];
+        if (r.alerta_asistencia && r.alerta_asistencia !== 'OK') motivos.push(`Asistencia ${r.alerta_asistencia} (${r.pct_asistencia}%)`);
+        if (r.alerta_justificaciones === 'ALERTA') motivos.push(`Justificaciones: ${r.contador_j}`);
+        if (r.alerta_retiros === 'ALERTA') motivos.push(`Retiros: ${r.contador_r}`);
+        if (r.alerta_logro === 'ALERTA') motivos.push('Bajo logro');
+        if (r.alerta_moodle === 'ALERTA') motivos.push('Inactivo en Moodle');
+        return motivos.join(' | ');
+      };
+
+      const contactos = participantes
+        .map(p => ({ p, r: resumenMap[p.rut] }))
+        .filter(({ r }) => r && (r.alerta_max === 'CRÍTICO' || r.alerta_max === 'ALERTA'))
+        .sort((a, b) => {
+          const ord = { 'CRÍTICO': 0, 'ALERTA': 1 };
+          return (ord[a.r.alerta_max] ?? 2) - (ord[b.r.alerta_max] ?? 2) || a.p.grupo.localeCompare(b.p.grupo);
+        })
+        .map(({ p, r }) => ({
+          'Nivel':             r.alerta_max,
+          'Grupo':             p.grupo,
+          'Tutor/a':           tutorPorGrupo[p.grupo] || '',
+          'Nombre completo':   p.nombre_completo,
+          'Correo':            p.correo,
+          'Teléfono':          p.telefono,
+          'Contacto preferido':p.contacto_preferido,
+          'Función':           p.funcion_principal,
+          'Establecimiento':   p.establecimiento,
+          '% Asistencia':      r.pct_asistencia ? `${r.pct_asistencia}%` : '',
+          'Inasistencias':     r.contador_f,
+          'Justificadas':      r.contador_j,
+          'Retiros':           r.contador_r,
+          'Razón(es)':         razones(r),
+          'Última sesión':     r.ultima_sesion_registrada,
+        }));
+
+      // Hoja 2: estado de registro de tutores
+      const tutores = USUARIOS_SEED.filter(u => u.roles.includes('TUTOR'));
+      const asistPorTutor = {};
+      asistencia.forEach(a => {
+        const tutor = GRUPOS_SEED.find(g => g.id === a.grupo)?.tutor_correo;
+        if (!tutor) return;
+        if (!asistPorTutor[tutor] || a.fecha_registro > asistPorTutor[tutor].fecha_registro) {
+          asistPorTutor[tutor] = a;
+        }
+      });
+
+      const estadoTutores = tutores
+        .filter((t, i, arr) => arr.findIndex(x => x.correo === t.correo) === i) // únicos por correo
+        .map(t => {
+          const ult = asistPorTutor[t.correo];
+          const logTutor = logs.filter(l => l.usuario === t.correo && l.accion === 'GUARDAR_ASISTENCIA')
+            .sort((a, b) => b.datetime.localeCompare(a.datetime))[0];
+          return {
+            'Tutor/a':             t.nombre_completo,
+            'Correo':              t.correo,
+            'Grupos':              t.grupos,
+            'Último registro asistencia': ult ? `S${ult.semana} ${ult.tipo_sesion} (${ult.fecha_sesion || ult.fecha_registro?.split('T')[0] || ''})` : 'Sin registros',
+            'Fecha último registro':      logTutor ? logTutor.datetime.split('T')[0] : '',
+            'Estado':              logTutor ? (new Date() - new Date(logTutor.datetime) > 10 * 24 * 3600 * 1000 ? 'ATRASADO' : 'Al día') : 'Sin actividad',
+          };
+        });
+
+      // Construir workbook
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.json_to_sheet(contactos);
+      const ws2 = XLSX.utils.json_to_sheet(estadoTutores);
+
+      // Ancho columnas hoja 1
+      ws1['!cols'] = [8,7,20,28,30,14,14,20,28,12,11,10,8,35,16].map(w => ({ wch: w }));
+      ws2['!cols'] = [25,28,20,30,18,12].map(w => ({ wch: w }));
+
+      XLSX.utils.book_append_sheet(wb, ws1, 'Contactos críticos');
+      XLSX.utils.book_append_sheet(wb, ws2, 'Estado tutores');
+
+      const fecha = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `informe_contactos_${fecha}.xlsx`);
+    } catch (err) { console.error(err); }
+    finally { setLoadingXls(false); }
+  }
+
   async function handleExportPDF() {
     try {
       await generatePDF('informe-preview', `informe_${alcance === 'grupo' ? grupoSel : 'completo'}_S${semanaInicio}-S${semanaFin}.pdf`);
@@ -49,7 +150,16 @@ export default function Reports() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <Topbar title="Generador de informes PDF" />
+      <Topbar title="Informes"
+        actions={
+          <button onClick={handleExportContactosXLS} disabled={loadingXls}
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-40"
+            style={{ background: 'var(--color-verde)' }}>
+            <FileSpreadsheet size={15} />
+            {loadingXls ? 'Generando…' : 'Excel contactos críticos'}
+          </button>
+        }
+      />
       <div className="flex-1 p-6 flex flex-col gap-5 overflow-y-auto">
 
         {/* Info banner */}

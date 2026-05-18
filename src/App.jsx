@@ -140,27 +140,27 @@ export default function App() {
               </RequireAuth>
             } />
             <Route path="/coord/alerts" element={
-              <RequireAuth roles={['COORD', 'ADMIN']}>
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><CriticalAlerts /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/coord/nomina" element={
-              <RequireAuth roles={['COORD', 'ADMIN']}>
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><NominaManager /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/coord/team" element={
-              <RequireAuth roles={['COORD', 'ADMIN']}>
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><TeamStatus /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/coord/reports" element={
-              <RequireAuth roles={['COORD', 'ADMIN']}>
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><Reports /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/coord/participant/:rut" element={
-              <RequireAuth roles={['COORD', 'ADMIN']}>
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><CoordProfile /></AppLayout>
               </RequireAuth>
             } />

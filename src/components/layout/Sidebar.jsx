@@ -87,7 +87,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             <NavItem to="/coord/alerts" icon={AlertTriangle} label="Alertas críticas" />
             <NavItem to="/coord/nomina" icon={Users} label="Nómina" />
             <NavItem to="/coord/team" icon={UserCog} label="Equipo tutores" />
-            {(!viewAs && hasRole('COORD')) || viewAs === 'COORD' ? <NavItem to="/coord/reports" icon={FileText} label="Informes PDF" /> : null}
+            <NavItem to="/coord/reports" icon={FileText} label="Informes" />
           </SidebarSection>
         )}
 
