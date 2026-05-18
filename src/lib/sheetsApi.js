@@ -94,7 +94,7 @@ export async function batchWrite(sheetName, rows) {
 export async function clearAndWriteSheet(sheetName, rows) {
   const headers = await getSheetHeaders(sheetName);
   const sn = encodeURIComponent(sheetName);
-  const clearUrl = `${BASE_URL}/${SHEETS_ID}/values/${sn}!A2:ZZ:clear`;
+  const clearUrl = `${BASE_URL}/${SHEETS_ID}/values/${sn}!A2:Z100000:clear`;
   await apiFetch(clearUrl, { method: 'POST', body: JSON.stringify({}) });
   if (!rows.length) return;
   const values = rows.map(r => objectToRow(headers, r));
