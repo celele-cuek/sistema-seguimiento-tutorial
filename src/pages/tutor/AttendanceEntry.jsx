@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import AttendanceRow from '../../components/attendance/AttendanceRow.jsx';
 import Badge from '../../components/ui/Badge.jsx';
@@ -16,11 +17,13 @@ const STEPS = ['Seleccionar sesión', 'Registrar asistencia', 'Confirmar y guard
 export default function AttendanceEntry() {
   const { auth } = useAuth();
   const { config } = useConfig();
+  const { viewAsTutor } = useViewAs();
   const navigate = useNavigate();
+  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
   const [step, setStep] = useState(0);
   const [semana, setSemana] = useState('');
   const [tipoSesion, setTipoSesion] = useState('TP');
-  const [grupo, setGrupo] = useState(auth?.grupos?.[0] || '');
+  const [grupo, setGrupo] = useState(grupos[0] || '');
   const [participants, setParticipants] = useState([]);
   const [estados, setEstados] = useState({});
   const [observaciones, setObservaciones] = useState({});
@@ -31,8 +34,6 @@ export default function AttendanceEntry() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-
-  const grupos = auth?.grupos || [];
   const totalSemanas = config?.total_semanas || 12;
   const semanas = Array.from({ length: totalSemanas }, (_, i) => i + 1);
 

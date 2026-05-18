@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import AttendanceGrid from '../../components/attendance/AttendanceGrid.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
@@ -10,12 +11,18 @@ import { HelpCircle } from 'lucide-react';
 export default function WeeklyGrid() {
   const { auth } = useAuth();
   const { config } = useConfig();
-  const [grupo, setGrupo] = useState(auth?.grupos?.[0] || '');
+  const { viewAsTutor } = useViewAs();
+  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const [grupo, setGrupo] = useState(grupos[0] || '');
   const [participants, setParticipants] = useState([]);
   const [asistencia, setAsistencia] = useState([]);
   const [resumen, setResumen] = useState([]);
   const [loading, setLoading] = useState(false);
-  const grupos = auth?.grupos || [];
+
+  useEffect(() => {
+    const g = grupos[0] || '';
+    setGrupo(g);
+  }, [viewAsTutor]);
 
   useEffect(() => { if (grupo) load(); }, [grupo]);
 

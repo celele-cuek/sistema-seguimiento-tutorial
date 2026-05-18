@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
@@ -32,6 +33,8 @@ const FORM_VACIO = { rut_participante: '', tipo_novedad: '', hora_evento: '', es
 export default function Novedades() {
   const { auth } = useAuth();
   const { config } = useConfig();
+  const { viewAsTutor } = useViewAs();
+  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
   const [novedades, setNovedades] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,12 +42,12 @@ export default function Novedades() {
   const [saving, setSaving] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
-  const [grupo, setGrupo] = useState(auth?.grupos?.[0] || '');
-  const grupos = auth?.grupos || [];
+  const [grupo, setGrupo] = useState(grupos[0] || '');
 
   const [editando, setEditando] = useState(null); // novedad completa cuando se edita
   const [form, setForm] = useState(FORM_VACIO);
 
+  useEffect(() => { setGrupo(grupos[0] || ''); }, [viewAsTutor]);
   useEffect(() => { load(); }, [grupo]);
 
   async function load() {

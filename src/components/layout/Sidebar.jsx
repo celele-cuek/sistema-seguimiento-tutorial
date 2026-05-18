@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useViewAs } from '../../contexts/ViewAsContext.jsx';
+import { USUARIOS_SEED } from '../../lib/seedData.js';
 import {
   LayoutDashboard, ClipboardList, Grid3X3, MessageSquare, Upload,
   Users, BarChart3, AlertTriangle, FileText, Settings, Database,
@@ -37,8 +38,12 @@ function SidebarSection({ title, children }) {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { auth, signOut, hasRole } = useAuth();
-  const { viewAs } = useViewAs();
+  const { viewAs, viewAsTutor, setViewAsTutor } = useViewAs();
   const navigate = useNavigate();
+
+  const tutorOptions = USUARIOS_SEED.filter((u, i, arr) =>
+    u.roles.includes('TUTOR') && arr.findIndex(x => x.correo === u.correo) === i
+  );
 
   function handleSignOut() {
     signOut();
@@ -73,6 +78,28 @@ export default function Sidebar({ collapsed, onToggle }) {
       <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5">
         {showTutor && (
           <SidebarSection title={collapsed ? '' : 'Mi aula'}>
+            {!collapsed && hasRole('ADMIN') && (
+              <select
+                className="mx-1 mb-1 text-xs rounded-md px-2 py-1.5 bg-white/10 text-gray-300 border border-white/10 focus:outline-none focus:border-white/30"
+                value={viewAsTutor?.correo || ''}
+                onChange={e => {
+                  const t = tutorOptions.find(u => u.correo === e.target.value);
+                  setViewAsTutor(t ? {
+                    correo: t.correo,
+                    nombre: t.nombre_completo,
+                    grupos: (t.grupos || '').split(',').filter(Boolean),
+                  } : null);
+                }}
+              >
+                <option value="">— Seleccionar tutor —</option>
+                {tutorOptions.map(t => (
+                  <option key={t.correo} value={t.correo}>
+                    {t.nombre_completo.split(' ').slice(0, 2).join(' ')}
+                    {t.grupos ? ` (${t.grupos})` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
             <NavItem to="/tutor/dashboard" icon={LayoutDashboard} label="Tablero" />
             <NavItem to="/tutor/attendance" icon={ClipboardList} label="Asistencia" />
             <NavItem to="/tutor/grid" icon={Grid3X3} label="Grilla histórica" />

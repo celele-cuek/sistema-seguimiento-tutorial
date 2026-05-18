@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import KpiCard from '../../components/ui/KpiCard.jsx';
 import AlertItem from '../../components/ui/AlertItem.jsx';
@@ -14,16 +15,17 @@ import { useNavigate } from 'react-router-dom';
 export default function TutorDashboard() {
   const { auth } = useAuth();
   const { config } = useConfig();
+  const { viewAsTutor } = useViewAs();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ participantes: [], resumen: [], novedades: [], asistencia: [] });
 
-  const grupos = auth?.grupos || [];
+  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
 
   useEffect(() => {
     if (!auth || !grupos.length) { setLoading(false); return; }
     loadData();
-  }, [auth]);
+  }, [auth, viewAsTutor]);
 
   async function loadData() {
     setLoading(true);
@@ -73,7 +75,10 @@ export default function TutorDashboard() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <Topbar title={`Mi Aula ${grupos.length === 1 ? `· Grupo ${grupos[0]}` : `· Grupos ${grupos.join(', ')}`}`} />
+      <Topbar title={viewAsTutor
+        ? `Aula de ${viewAsTutor.nombre.split(' ').slice(0,2).join(' ')} · ${grupos.join(', ')}`
+        : `Mi Aula ${grupos.length === 1 ? `· Grupo ${grupos[0]}` : `· Grupos ${grupos.join(', ')}`}`}
+      />
       <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
 
         {/* KPIs */}
