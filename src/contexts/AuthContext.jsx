@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
           semana: '',
           detalle: profile.nombre || '',
           ip: '',
-        }).catch(() => {});
+        }).catch(err => console.warn('No se pudo registrar LOGIN en LOG:', err.message));
       }
     } catch (err) {
       console.error('Sign in error:', err);
