@@ -10,6 +10,11 @@ export default function AttendanceRow({ participant, estado, observacion = '', o
   const [showTime, setShowTime] = useState(estado?.estado === 'R' || estado?.estado === 'J');
 
   function handleEstado(newEstado) {
+    if (estado?.estado === newEstado) {
+      setShowTime(false);
+      onEstadoChange?.(participant.rut, { estado: '', pct_sesion: '', hora_evento: '' });
+      return;
+    }
     const needsTime = newEstado === 'R' || newEstado === 'J';
     setShowTime(needsTime);
     const pct = calcPctSesion(newEstado, estado?.hora_evento, config?.hora_inicio_sesion);
