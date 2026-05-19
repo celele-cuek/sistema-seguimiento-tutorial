@@ -31,7 +31,7 @@ export default function Login() {
     if (from && from !== '/login' && from !== '/') return from;
     if (roles.includes('TUTOR')) return '/tutor/dashboard';
     if (roles.includes('COORD')) return '/coord/panel';
-    if (roles.includes('ASISTENTE')) return '/tutor/moodle';
+    if (roles.includes('ASISTENTE')) return '/coord/panel';
     return '/tutor/dashboard';
   }
 

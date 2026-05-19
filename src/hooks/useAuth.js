@@ -72,6 +72,12 @@ export function useTokenClient() {
             headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
           });
           const userInfo = await userInfoRes.json();
+          if (!userInfo.email) {
+            throw new Error(
+              userInfo.error_description ||
+              'No se pudo obtener el correo desde Google. Asegúrate de permitir todos los permisos al iniciar sesión.'
+            );
+          }
           await signIn(null, tokenResponse.access_token, userInfo.email);
           onSuccess?.(tokenResponse);
         } catch (err) {
