@@ -19,7 +19,8 @@ export default function AttendanceEntry() {
   const { config } = useConfig();
   const { viewAsTutor } = useViewAs();
   const navigate = useNavigate();
-  const baseGrupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const isAdmin = auth?.roles?.includes('ADMIN');
+  const baseGrupos = isAdmin ? [] : (viewAsTutor?.grupos || auth?.grupos || []);
   const [allGrupos, setAllGrupos] = useState([]);
   const grupos = baseGrupos.length > 0 ? baseGrupos : allGrupos;
   const [step, setStep] = useState(0);
