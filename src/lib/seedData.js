@@ -17,6 +17,7 @@ export const USUARIOS_SEED = [
   { correo: 'brandon.pichicon@gmail.com', nombre_completo: 'Brandon Alejandro Pichicon Roa', rut: '20998853-4', roles: 'ASISTENTE', grupos: '', correo_zoom: '', activo: 'TRUE', fecha_creacion: '2026-03-01' },
   { correo: 'florenciajaraarancibia@gmail.com', nombre_completo: 'Florencia Antonia Jara Arancibia', rut: '20195681-1', roles: 'ASISTENTE', grupos: '', correo_zoom: '', activo: 'TRUE', fecha_creacion: '2026-03-01' },
   { correo: 'ivan8enteros@gmail.com', nombre_completo: 'Iván Andrés Ramírez Alarcón', rut: '14408781-k', roles: 'ASISTENTE', grupos: '', correo_zoom: '', activo: 'TRUE', fecha_creacion: '2026-03-01' },
+  { correo: 'catalinazelada@gmail.com', nombre_completo: 'Catalina Zelada Carreño', rut: '17560577-0', roles: 'ASISTENTE', grupos: '', correo_zoom: '', activo: 'TRUE', fecha_creacion: '2026-05-19' },
 ];
 
 export const GRUPOS_SEED = [
