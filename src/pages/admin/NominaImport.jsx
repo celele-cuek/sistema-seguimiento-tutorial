@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import { parseFile, detectColumnMapping, processParticipantsFile, PARTICIPANTE_HEADERS } from '../../lib/csvProcessor.js';
 import { batchWrite, readSheet, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
-import { generateId, nowISO } from '../../lib/utils.js';
+import { generateId, nowISO, todayISO } from '../../lib/utils.js';
 import { Upload, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function NominaImport() {
@@ -50,7 +50,7 @@ export default function NominaImport() {
       const existRuts = new Set(existing.map(p => p.rut));
       const toWrite = result.valid.filter(p => !existRuts.has(p.rut)).map(({ _rowNum, _errors, ...p }) => ({
         ...p,
-        fecha_ingreso: p.fecha_ingreso || nowISO().split('T')[0],
+        fecha_ingreso: p.fecha_ingreso || todayISO(),
         estado: 'Activo',
       }));
       if (!toWrite.length) { setError('Todos los registros ya existen en el sistema.'); setSaving(false); return; }
@@ -70,7 +70,7 @@ export default function NominaImport() {
     try {
       const toWrite = result.valid.map(({ _rowNum, _errors, ...p }) => ({
         ...p,
-        fecha_ingreso: p.fecha_ingreso || nowISO().split('T')[0],
+        fecha_ingreso: p.fecha_ingreso || todayISO(),
         estado: 'Activo',
       }));
       await clearAndWriteSheet('PARTICIPANTES', toWrite);

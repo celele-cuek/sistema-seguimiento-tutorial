@@ -6,7 +6,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import AttendanceRow from '../../components/attendance/AttendanceRow.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { readSheet, batchWrite, batchUpdateRows, writeRow, updateRow } from '../../lib/sheetsApi.js';
-import { calcPctSesion, generateId, nowISO, pctDisplay } from '../../lib/utils.js';
+import { calcPctSesion, generateId, nowISO, todayISO, pctDisplay } from '../../lib/utils.js';
 import { calcResumenParticipante, nivelMax } from '../../lib/alertEngine.js';
 import { CheckCircle, Save, ChevronRight, Users, ClipboardCheck, HelpCircle } from 'lucide-react';
 import Tooltip from '../../components/ui/Tooltip.jsx';
@@ -30,7 +30,7 @@ export default function AttendanceEntry() {
   const [estados, setEstados] = useState({});
   const [observaciones, setObservaciones] = useState({});
   const [novedadesMap, setNovedadesMap] = useState({});
-  const [fechaSesion, setFechaSesion] = useState(nowISO().split('T')[0]);
+  const [fechaSesion, setFechaSesion] = useState(todayISO());
   const [existingRows, setExistingRows] = useState({}); // rut → _rowIndex of existing ASISTENCIA record
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -315,7 +315,7 @@ export default function AttendanceEntry() {
                 <input
                   type="date"
                   value={fechaSesion}
-                  max={nowISO().split('T')[0]}
+                  max={todayISO()}
                   onChange={e => setFechaSesion(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-verde)]"
                 />

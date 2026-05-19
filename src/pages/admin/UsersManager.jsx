@@ -4,7 +4,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { readSheet, updateRow, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
-import { generateId, nowISO, formatDateTime } from '../../lib/utils.js';
+import { generateId, nowISO, todayISO, formatDateTime } from '../../lib/utils.js';
 import { Plus, Shield, RefreshCw } from 'lucide-react';
 
 const ACCION_LABELS = {
@@ -27,7 +27,7 @@ export default function UsersManager() {
   const [newMode, setNewMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deduping, setDeduping] = useState(false);
-  const blank = { correo: '', nombre_completo: '', rut: '', roles: 'TUTOR', grupos: '', activo: 'TRUE', correo_zoom: '', fecha_creacion: nowISO().split('T')[0] };
+  const blank = { correo: '', nombre_completo: '', rut: '', roles: 'TUTOR', grupos: '', activo: 'TRUE', correo_zoom: '', fecha_creacion: todayISO() };
 
   useEffect(() => { load(); }, []);
 

@@ -75,7 +75,7 @@ export function nowISO() {
 }
 
 export function todayISO() {
-  return new Date().toISOString().split('T')[0];
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
 }
 
 export function minutesDiff(time1, time2) {

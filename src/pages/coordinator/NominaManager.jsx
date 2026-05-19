@@ -6,7 +6,7 @@ import Badge from '../../components/ui/Badge.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet, updateRow, writeRow } from '../../lib/sheetsApi.js';
-import { generateId, nowISO, normalizeRut } from '../../lib/utils.js';
+import { generateId, nowISO, todayISO, normalizeRut } from '../../lib/utils.js';
 import { Plus, HelpCircle } from 'lucide-react';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
 
@@ -47,7 +47,7 @@ export default function NominaManager() {
 
   async function handleBaja(p) {
     if (!confirm(`¿Dar de baja a ${p.nombre_completo}?`)) return;
-    await updateRow('PARTICIPANTES', p._rowIndex, { ...p, estado: 'Inactivo', fecha_baja: nowISO().split('T')[0], motivo_baja: 'Baja manual por coordinación' });
+    await updateRow('PARTICIPANTES', p._rowIndex, { ...p, estado: 'Inactivo', fecha_baja: todayISO(), motivo_baja: 'Baja manual por coordinación' });
     await load();
   }
 

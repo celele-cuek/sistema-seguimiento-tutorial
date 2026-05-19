@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useConfig } from '../contexts/ConfigContext.jsx';
 import { initSheet, writeRow, batchWrite, readSheet, updateRow } from '../lib/sheetsApi.js';
 import { USUARIOS_SEED, CONFIG_SEED, SHEET_HEADERS } from '../lib/seedData.js';
-import { generateId, nowISO } from '../lib/utils.js';
+import { generateId, nowISO, todayISO } from '../lib/utils.js';
 import { CheckCircle, Circle, ChevronRight, Database, Users, Settings, BookOpen, Bell } from 'lucide-react';
 
 const STEPS = [
@@ -60,7 +60,7 @@ export default function Setup() {
     const existEmails = new Set(existing.map(u => u.correo?.toLowerCase().trim()));
     const toWrite = USUARIOS_SEED
       .filter(u => !existEmails.has(u.correo?.toLowerCase().trim()))
-      .map(u => ({ ...u, activo: u.activo ? 'TRUE' : 'FALSE', fecha_creacion: nowISO().split('T')[0] }));
+      .map(u => ({ ...u, activo: u.activo ? 'TRUE' : 'FALSE', fecha_creacion: todayISO() }));
     if (toWrite.length) await batchWrite('USUARIOS', toWrite);
   }
 
