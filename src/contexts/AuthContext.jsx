@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { readSheet, setToken } from '../lib/sheetsApi.js';
+import { readSheet, writeRow, setToken } from '../lib/sheetsApi.js';
+import { generateId, nowISO } from '../lib/utils.js';
 import { USUARIOS_SEED } from '../lib/seedData.js';
 
 const AuthContext = createContext(null);
@@ -71,6 +72,18 @@ export function AuthProvider({ children }) {
       } else {
         setAuth(profile);
         sessionStorage.setItem('auth_profile', JSON.stringify(profile));
+        writeRow('LOG', {
+          id: generateId(),
+          datetime: nowISO(),
+          usuario: profile.email,
+          rol_activo: profile.roles.join(','),
+          accion: 'LOGIN',
+          entidad: 'USUARIOS',
+          grupo: '',
+          semana: '',
+          detalle: profile.nombre || '',
+          ip: '',
+        }).catch(() => {});
       }
     } catch (err) {
       console.error('Sign in error:', err);
