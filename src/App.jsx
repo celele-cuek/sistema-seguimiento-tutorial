@@ -28,6 +28,7 @@ const CourseConfig       = lazy(() => import('./pages/admin/CourseConfig.jsx'));
 const NominaImport       = lazy(() => import('./pages/admin/NominaImport.jsx'));
 const UsersManager       = lazy(() => import('./pages/admin/UsersManager.jsx'));
 const Thresholds         = lazy(() => import('./pages/admin/Thresholds.jsx'));
+const CoordThresholds    = lazy(() => import('./pages/admin/Thresholds.jsx'));
 const Backup             = lazy(() => import('./pages/admin/Backup.jsx'));
 const AuditLog           = lazy(() => import('./pages/admin/AuditLog.jsx'));
 
@@ -162,6 +163,13 @@ export default function App() {
             <Route path="/coord/participant/:rut" element={
               <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><CoordProfile /></AppLayout>
+              </RequireAuth>
+            } />
+
+            {/* Coord thresholds (COORD edita, ASISTENTE solo lee) */}
+            <Route path="/coord/thresholds" element={
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
+                <AppLayout><CoordThresholds /></AppLayout>
               </RequireAuth>
             } />
 

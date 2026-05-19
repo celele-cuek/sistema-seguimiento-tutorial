@@ -4,8 +4,18 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { readSheet, updateRow, writeRow, clearAndWriteSheet } from '../../lib/sheetsApi.js';
-import { generateId, nowISO } from '../../lib/utils.js';
+import { generateId, nowISO, formatDateTime } from '../../lib/utils.js';
 import { Plus, Shield, RefreshCw } from 'lucide-react';
+
+const ACCION_LABELS = {
+  GUARDAR_ASISTENCIA: 'Guardó asistencia',
+  EDITAR_USUARIO: 'Editó usuario',
+  AGREGAR_NOVEDAD: 'Agregó novedad',
+  EDITAR_NOVEDAD: 'Editó novedad',
+  EDITAR_CONFIG: 'Editó configuración',
+  CARGA_MOODLE: 'Cargó Moodle',
+  IMPORTAR_NOMINA: 'Importó nómina',
+};
 
 const ROLES_OPTS = ['ADMIN', 'COORD', 'TUTOR', 'ASISTENTE'];
 
@@ -24,13 +34,26 @@ export default function UsersManager() {
   async function load() {
     setLoading(true);
     try {
-      const all = await readSheet('USUARIOS');
+      const [all, log] = await Promise.all([readSheet('USUARIOS'), readSheet('LOG')]);
+
+      const lastActivity = {};
+      for (const entry of log) {
+        const email = entry.usuario?.toLowerCase().trim();
+        if (!email) continue;
+        if (!lastActivity[email] || entry.datetime > lastActivity[email].datetime) {
+          lastActivity[email] = { datetime: entry.datetime, accion: entry.accion };
+        }
+      }
+
       const seen = new Set();
       setUsers(all.filter(u => {
         const key = u.correo?.toLowerCase().trim();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
+      }).map(u => {
+        const act = lastActivity[u.correo?.toLowerCase().trim()];
+        return { ...u, _lastAccess: act?.datetime || '', _lastAction: act?.accion || '' };
       }));
     }
     catch (err) { console.error(err); }
@@ -93,6 +116,8 @@ export default function UsersManager() {
     )},
     { key: 'grupos', label: 'Grupos' },
     { key: 'activo', label: 'Activo', render: (v) => v === 'TRUE' ? <span className="text-green-600 text-xs">Activo</span> : <span className="text-red-500 text-xs">Inactivo</span> },
+    { key: '_lastAccess', label: 'Último acceso', render: (v) => v ? <span className="text-xs text-gray-500">{formatDateTime(v)}</span> : <span className="text-xs text-gray-300">—</span> },
+    { key: '_lastAction', label: 'Última acción', render: (v) => v ? <span className="text-xs text-gray-600">{ACCION_LABELS[v] || v}</span> : <span className="text-xs text-gray-300">—</span> },
     { key: 'acciones', label: '', sortable: false, render: (_, row) => (
       <div className="flex gap-1">
         <button onClick={(e) => { e.stopPropagation(); setEditU({ ...row }); setNewMode(false); }} className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">Editar</button>

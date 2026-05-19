@@ -5,7 +5,7 @@ import { USUARIOS_SEED } from '../../lib/seedData.js';
 import {
   LayoutDashboard, ClipboardList, Grid3X3, MessageSquare, Upload,
   Users, BarChart3, AlertTriangle, FileText, Settings, Database,
-  LogOut, ChevronRight, BookOpen, Shield, UserCog
+  LogOut, ChevronRight, BookOpen, Shield, UserCog, Sliders, Eye
 } from 'lucide-react';
 
 function NavItem({ to, icon: Icon, label, end = false }) {
@@ -38,7 +38,7 @@ function SidebarSection({ title, children }) {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { auth, signOut, hasRole } = useAuth();
-  const { viewAs, viewAsTutor, setViewAsTutor } = useViewAs();
+  const { viewAs, viewAsTutor, setViewAsTutor, viewAsAsistente, setViewAsAsistente } = useViewAs();
   const navigate = useNavigate();
 
   const tutorOptions = USUARIOS_SEED.filter((u, i, arr) =>
@@ -52,9 +52,9 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   // When viewAs is set, simulate that role's navigation
   const canSee = (role) => viewAs ? viewAs === role : hasRole(role);
-  const showTutor = canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD') || hasRole('ASISTENTE')));
-  const showCoord = canSee('COORD') || (!viewAs && (hasRole('ASISTENTE')));
-  const showAdmin = !viewAs && hasRole('ADMIN');
+  const showTutor = viewAsAsistente ? true : (canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD') || hasRole('ASISTENTE'))));
+  const showCoord = viewAsAsistente ? true : (canSee('COORD') || (!viewAs && (hasRole('COORD') || hasRole('ASISTENTE'))));
+  const showAdmin = viewAsAsistente ? false : (!viewAs && hasRole('ADMIN'));
 
   return (
     <aside
@@ -78,7 +78,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5">
         {showTutor && (
           <SidebarSection title={collapsed ? '' : 'Mi aula'}>
-            {!collapsed && hasRole('ADMIN') && (
+            {!collapsed && hasRole('ADMIN') && !viewAsAsistente && (
               <select
                 className="mx-1 mb-1 text-xs rounded-md px-2 py-1.5 bg-white/10 text-gray-300 border border-white/10 focus:outline-none focus:border-white/30"
                 value={viewAsTutor?.correo || ''}
@@ -115,6 +115,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             <NavItem to="/coord/nomina" icon={Users} label="Nómina" />
             <NavItem to="/coord/team" icon={UserCog} label="Equipo tutores" />
             <NavItem to="/coord/reports" icon={FileText} label="Informes" />
+            <NavItem to="/coord/thresholds" icon={Sliders} label="Umbrales" />
           </SidebarSection>
         )}
 
@@ -137,6 +138,15 @@ export default function Sidebar({ collapsed, onToggle }) {
             <p className="text-white text-xs font-medium truncate">{auth.nombre?.split(' ')[0]}</p>
             <p className="text-gray-500 text-xs truncate">{auth.email}</p>
           </div>
+        )}
+        {!collapsed && hasRole('ADMIN') && (
+          <button
+            onClick={() => { setViewAsAsistente(v => !v); setViewAsTutor(null); }}
+            className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs mb-1 font-medium transition-colors ${viewAsAsistente ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Eye size={14} />
+            {viewAsAsistente ? 'Salir vista Asistente' : 'Ver como Asistente'}
+          </button>
         )}
         <button
           onClick={handleSignOut}
