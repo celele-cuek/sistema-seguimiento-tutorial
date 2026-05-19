@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useViewAs } from '../../contexts/ViewAsContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
 import Modal from '../../components/ui/Modal.jsx';
@@ -77,15 +78,22 @@ const thresholds = [
 export default function Thresholds() {
   const { auth, hasRole } = useAuth();
   const { config, updateConfig } = useConfig();
+  const { viewAsRole } = useViewAs();
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showConfirm1, setShowConfirm1] = useState(false);
   const [showConfirm2, setShowConfirm2] = useState(false);
 
-  const isAdmin = hasRole('ADMIN');
-  const isCoord = hasRole('COORD') && !isAdmin;
-  const isAsistente = hasRole('ASISTENTE') && !isAdmin && !isCoord;
+  // Use simulated role if set, otherwise real role
+  const effectiveRole = viewAsRole || (
+    hasRole('ADMIN') ? 'ADMIN' :
+    hasRole('COORD') ? 'COORD' :
+    hasRole('TUTOR') ? 'TUTOR' : 'ASISTENTE'
+  );
+  const isAdmin = effectiveRole === 'ADMIN';
+  const isCoord = effectiveRole === 'COORD';
+  const isAsistente = effectiveRole === 'ASISTENTE' || effectiveRole === 'TUTOR';
 
   useEffect(() => { if (config) setForm({ ...config }); }, [config]);
 

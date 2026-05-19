@@ -36,10 +36,19 @@ function SidebarSection({ title, children }) {
   );
 }
 
+// Permissions per role
+const ROLE_PERMS = {
+  ADMIN:     { tutor: true,  coord: true,  admin: true  },
+  COORD:     { tutor: true,  coord: true,  admin: false },
+  TUTOR:     { tutor: true,  coord: false, admin: false },
+  ASISTENTE: { tutor: true,  coord: true,  admin: false },
+};
+
 export default function Sidebar({ collapsed, onToggle }) {
   const { auth, signOut, hasRole } = useAuth();
-  const { viewAs, viewAsTutor, setViewAsTutor, viewAsAsistente, setViewAsAsistente } = useViewAs();
+  const { viewAsRole, setViewAsRole, viewAsTutor, setViewAsTutor } = useViewAs();
   const navigate = useNavigate();
+  const isAdmin = hasRole('ADMIN');
 
   const tutorOptions = USUARIOS_SEED.filter((u, i, arr) =>
     u.roles.includes('TUTOR') && arr.findIndex(x => x.correo === u.correo) === i
@@ -50,11 +59,20 @@ export default function Sidebar({ collapsed, onToggle }) {
     navigate('/login');
   }
 
-  // When viewAs is set, simulate that role's navigation
-  const canSee = (role) => viewAs ? viewAs === role : hasRole(role);
-  const showTutor = viewAsAsistente ? true : (canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD') || hasRole('ASISTENTE'))));
-  const showCoord = viewAsAsistente ? true : (canSee('COORD') || (!viewAs && (hasRole('COORD') || hasRole('ASISTENTE'))));
-  const showAdmin = viewAsAsistente ? false : (!viewAs && hasRole('ADMIN'));
+  // Determine effective permissions
+  const effectiveRole = viewAsRole || (
+    hasRole('ADMIN') ? 'ADMIN' :
+    hasRole('COORD') ? 'COORD' :
+    hasRole('TUTOR') ? 'TUTOR' : 'ASISTENTE'
+  );
+  const perms = ROLE_PERMS[effectiveRole] || ROLE_PERMS.TUTOR;
+
+  const showTutor = perms.tutor;
+  const showCoord = perms.coord;
+  const showAdmin = perms.admin;
+
+  // Tutor selector: show only when ADMIN (real) and tutor section is visible
+  const showTutorSelector = !collapsed && isAdmin && showTutor;
 
   return (
     <aside
@@ -74,11 +92,36 @@ export default function Sidebar({ collapsed, onToggle }) {
         </button>
       </div>
 
+      {/* Role selector — ADMIN only */}
+      {!collapsed && isAdmin && (
+        <div className="px-3 py-2.5 border-b border-white/10">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Eye size={11} className="text-gray-500" />
+            <p className="text-xs text-gray-500">Vista como:</p>
+          </div>
+          <select
+            value={viewAsRole || ''}
+            onChange={e => { setViewAsRole(e.target.value || null); setViewAsTutor(null); }}
+            className="w-full text-xs rounded-md px-2 py-1.5 bg-white/10 text-gray-300 border border-white/10 focus:outline-none focus:border-white/30"
+          >
+            <option value="">Mi rol (Admin)</option>
+            <option value="COORD">Coordinador/a</option>
+            <option value="TUTOR">Tutor/a</option>
+            <option value="ASISTENTE">Asistente</option>
+          </select>
+          {viewAsRole && (
+            <p className="text-xs text-blue-400 mt-1 px-1">
+              Viendo como {viewAsRole}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5">
         {showTutor && (
           <SidebarSection title={collapsed ? '' : 'Mi aula'}>
-            {!collapsed && hasRole('ADMIN') && !viewAsAsistente && (
+            {showTutorSelector && (
               <select
                 className="mx-1 mb-1 text-xs rounded-md px-2 py-1.5 bg-white/10 text-gray-300 border border-white/10 focus:outline-none focus:border-white/30"
                 value={viewAsTutor?.correo || ''}
@@ -108,7 +151,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           </SidebarSection>
         )}
 
-        {(showCoord || (!viewAs && (hasRole('COORD') || hasRole('ASISTENTE')))) && (
+        {showCoord && (
           <SidebarSection title={collapsed ? '' : 'Coordinación'}>
             <NavItem to="/coord/panel" icon={BarChart3} label="Panel general" />
             <NavItem to="/coord/alerts" icon={AlertTriangle} label="Alertas críticas" />
@@ -138,15 +181,6 @@ export default function Sidebar({ collapsed, onToggle }) {
             <p className="text-white text-xs font-medium truncate">{auth.nombre?.split(' ')[0]}</p>
             <p className="text-gray-500 text-xs truncate">{auth.email}</p>
           </div>
-        )}
-        {!collapsed && hasRole('ADMIN') && (
-          <button
-            onClick={() => { setViewAsAsistente(v => !v); setViewAsTutor(null); }}
-            className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs mb-1 font-medium transition-colors ${viewAsAsistente ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
-          >
-            <Eye size={14} />
-            {viewAsAsistente ? 'Salir vista Asistente' : 'Ver como Asistente'}
-          </button>
         )}
         <button
           onClick={handleSignOut}

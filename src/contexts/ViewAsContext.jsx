@@ -1,16 +1,21 @@
 import { createContext, useContext, useState } from 'react';
 
 const ViewAsContext = createContext({
-  viewAs: null, setViewAs: () => {},
+  viewAsRole: null, setViewAsRole: () => {},
   viewAsTutor: null, setViewAsTutor: () => {},
 });
 
 export function ViewAsProvider({ children }) {
-  const [viewAs, setViewAs] = useState(null); // null | 'TUTOR' | 'COORD'
+  // viewAsRole: null = real role | 'TUTOR' | 'COORD' | 'ASISTENTE'
+  const [viewAsRole, setViewAsRole] = useState(null);
   const [viewAsTutor, setViewAsTutor] = useState(null); // { correo, nombre, grupos: [] }
-  const [viewAsAsistente, setViewAsAsistente] = useState(false);
+
+  // Legacy alias so existing code using viewAs still works
+  const viewAs = viewAsRole;
+  const setViewAs = setViewAsRole;
+
   return (
-    <ViewAsContext.Provider value={{ viewAs, setViewAs, viewAsTutor, setViewAsTutor, viewAsAsistente, setViewAsAsistente }}>
+    <ViewAsContext.Provider value={{ viewAsRole, setViewAsRole, viewAs, setViewAs, viewAsTutor, setViewAsTutor }}>
       {children}
     </ViewAsContext.Provider>
   );
