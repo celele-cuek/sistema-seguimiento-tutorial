@@ -79,7 +79,7 @@ function RootRedirect() {
   if (auth.denied) return <Navigate to="/access-denied" replace />;
   if (auth.roles?.includes('TUTOR')) return <Navigate to="/tutor/dashboard" replace />;
   if (auth.roles?.includes('COORD')) return <Navigate to="/coord/panel" replace />;
-  if (auth.roles?.includes('ASISTENTE')) return <Navigate to="/tutor/moodle" replace />;
+  if (auth.roles?.includes('ASISTENTE')) return <Navigate to="/coord/panel" replace />;
   return <Navigate to="/login" replace />;
 }
 
@@ -103,22 +103,22 @@ export default function App() {
 
             {/* Tutor routes */}
             <Route path="/tutor/dashboard" element={
-              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD']}>
+              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD', 'ASISTENTE']}>
                 <AppLayout><TutorDashboard /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/tutor/attendance" element={
-              <RequireAuth roles={['TUTOR', 'ADMIN']}>
+              <RequireAuth roles={['TUTOR', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><AttendanceEntry /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/tutor/grid" element={
-              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD']}>
+              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD', 'ASISTENTE']}>
                 <AppLayout><WeeklyGrid /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/tutor/novedades" element={
-              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD']}>
+              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD', 'ASISTENTE']}>
                 <AppLayout><Novedades /></AppLayout>
               </RequireAuth>
             } />
@@ -128,7 +128,7 @@ export default function App() {
               </RequireAuth>
             } />
             <Route path="/tutor/participant/:rut" element={
-              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD']}>
+              <RequireAuth roles={['TUTOR', 'ADMIN', 'COORD', 'ASISTENTE']}>
                 <AppLayout><ParticipantProfile /></AppLayout>
               </RequireAuth>
             } />

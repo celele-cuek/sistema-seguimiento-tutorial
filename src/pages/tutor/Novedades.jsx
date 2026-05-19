@@ -34,7 +34,9 @@ export default function Novedades() {
   const { auth } = useAuth();
   const { config } = useConfig();
   const { viewAsTutor } = useViewAs();
-  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const baseGrupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const [allGrupos, setAllGrupos] = useState([]);
+  const grupos = baseGrupos.length > 0 ? baseGrupos : allGrupos;
   const [novedades, setNovedades] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,17 @@ export default function Novedades() {
   const [editando, setEditando] = useState(null); // novedad completa cuando se edita
   const [form, setForm] = useState(FORM_VACIO);
 
-  useEffect(() => { setGrupo(grupos[0] || ''); }, [viewAsTutor]);
+  useEffect(() => {
+    if (baseGrupos.length === 0) {
+      readSheet('PARTICIPANTES').then(rows => {
+        const gs = [...new Set(rows.filter(p => p.grupo).map(p => p.grupo))].sort();
+        setAllGrupos(gs);
+      }).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => { setGrupo(baseGrupos[0] || ''); }, [viewAsTutor]);
+  useEffect(() => { if (!grupo && grupos.length > 0) setGrupo(grupos[0]); }, [grupos]);
   useEffect(() => { load(); }, [grupo]);
 
   async function load() {
@@ -189,15 +201,25 @@ export default function Novedades() {
       />
       <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
         {grupos.length > 1 && (
-          <div className="flex gap-2 flex-wrap">
-            {grupos.map(g => (
-              <button key={g} onClick={() => setGrupo(g)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${grupo === g ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
-                style={grupo === g ? { background: 'var(--color-verde)' } : {}}>
-                Grupo {g}
-              </button>
-            ))}
-          </div>
+          grupos.length > 4 ? (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600">Grupo:</label>
+              <select value={grupo} onChange={e => setGrupo(e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)]">
+                {grupos.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {grupos.map(g => (
+                <button key={g} onClick={() => setGrupo(g)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${grupo === g ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                  style={grupo === g ? { background: 'var(--color-verde)' } : {}}>
+                  Grupo {g}
+                </button>
+              ))}
+            </div>
+          )
         )}
 
         {/* Info banner */}

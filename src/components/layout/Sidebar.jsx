@@ -52,7 +52,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   // When viewAs is set, simulate that role's navigation
   const canSee = (role) => viewAs ? viewAs === role : hasRole(role);
-  const showTutor = canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD')));
+  const showTutor = canSee('TUTOR') || (!viewAs && (hasRole('ADMIN') || hasRole('COORD') || hasRole('ASISTENTE')));
   const showCoord = canSee('COORD') || (!viewAs && (hasRole('ASISTENTE')));
   const showAdmin = !viewAs && hasRole('ADMIN');
 

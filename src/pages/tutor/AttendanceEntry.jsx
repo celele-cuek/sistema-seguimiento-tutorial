@@ -19,7 +19,9 @@ export default function AttendanceEntry() {
   const { config } = useConfig();
   const { viewAsTutor } = useViewAs();
   const navigate = useNavigate();
-  const grupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const baseGrupos = viewAsTutor?.grupos || auth?.grupos || [];
+  const [allGrupos, setAllGrupos] = useState([]);
+  const grupos = baseGrupos.length > 0 ? baseGrupos : allGrupos;
   const [step, setStep] = useState(0);
   const [semana, setSemana] = useState('');
   const [tipoSesion, setTipoSesion] = useState('TP');
@@ -36,6 +38,19 @@ export default function AttendanceEntry() {
   const [error, setError] = useState('');
   const totalSemanas = config?.total_semanas || 12;
   const semanas = Array.from({ length: totalSemanas }, (_, i) => i + 1);
+
+  useEffect(() => {
+    if (baseGrupos.length === 0) {
+      readSheet('PARTICIPANTES').then(rows => {
+        const gs = [...new Set(rows.filter(p => p.grupo).map(p => p.grupo))].sort();
+        setAllGrupos(gs);
+      }).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!grupo && grupos.length > 0) setGrupo(grupos[0]);
+  }, [grupos]);
 
   useEffect(() => {
     const draft = sessionStorage.getItem('attendance_draft');
