@@ -33,7 +33,8 @@ export default function Reports() {
       const filtP = alcance === 'grupo' ? participantes.filter(p => p.grupo === grupoSel) : participantes;
       const filtR = alcance === 'grupo' ? resumen.filter(r => r.grupo === grupoSel) : resumen;
       setReportData({ participantes: filtP, resumen: filtR, asistencia, novedades });
-      const conc = generateInformeText({ grupos: GRUPOS_SEED, participantes: filtP, resumen: filtR, semanaInicio, semanaFin }, config || {});
+      const filtGrupos = alcance === 'grupo' ? GRUPOS_SEED.filter(g => g.id === grupoSel) : GRUPOS_SEED;
+      const conc = generateInformeText({ grupos: filtGrupos, participantes: filtP, resumen: filtR, semanaInicio, semanaFin, alcance }, config || {});
       setConclusiones(conc);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }

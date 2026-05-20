@@ -36,19 +36,21 @@ export async function generatePDF(elementId, fileName = 'informe.pdf') {
 }
 
 export function generateInformeText(data, config) {
-  const { grupos, participantes, resumen, semanaInicio, semanaFin } = data;
+  const { grupos, resumen, semanaInicio, semanaFin, alcance } = data;
   const conclusiones = [];
+  const isGrupo = alcance === 'grupo';
 
-  const criticos = participantes.filter(p => p.alerta_max === 'CRÍTICO');
-  const enAlerta = participantes.filter(p => p.alerta_max === 'ALERTA');
-  const pctGlobal = participantes.reduce((s, p) => s + (Number(p.pct_asistencia) || 0), 0) / (participantes.length || 1);
+  const criticos = resumen.filter(r => r.alerta_max === 'CRÍTICO');
+  const enAlerta = resumen.filter(r => r.alerta_max === 'ALERTA');
+  const pctGlobal = resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / (resumen.length || 1);
+  const scope = isGrupo ? 'del grupo' : 'global';
 
-  if (pctGlobal < config.umbral_critico / 100) {
-    conclusiones.push(`La asistencia promedio global (${Math.round(pctGlobal * 100)}%) está por debajo del umbral crítico (${config.umbral_critico}%). Se requiere intervención inmediata.`);
-  } else if (pctGlobal < config.umbral_alerta / 100) {
-    conclusiones.push(`La asistencia promedio global (${Math.round(pctGlobal * 100)}%) está en zona de alerta. Monitorear de cerca.`);
+  if (pctGlobal < (config.umbral_critico || 70)) {
+    conclusiones.push(`La asistencia promedio ${scope} (${Math.round(pctGlobal)}%) está por debajo del umbral crítico (${config.umbral_critico || 70}%). Se requiere intervención inmediata.`);
+  } else if (pctGlobal < (config.umbral_alerta || 85)) {
+    conclusiones.push(`La asistencia promedio ${scope} (${Math.round(pctGlobal)}%) está en zona de alerta. Monitorear de cerca.`);
   } else {
-    conclusiones.push(`La asistencia promedio global es ${Math.round(pctGlobal * 100)}%, por sobre los umbrales de alerta.`);
+    conclusiones.push(`La asistencia promedio ${scope} es ${Math.round(pctGlobal)}%, por sobre los umbrales de alerta.`);
   }
 
   if (criticos.length > 0) {
@@ -58,9 +60,18 @@ export function generateInformeText(data, config) {
     conclusiones.push(`${enAlerta.length} participante(s) están en zona de alerta. Se recomienda seguimiento proactivo.`);
   }
 
-  const santiagoCarga = grupos.filter(g => g.tutor_correo === 'santiago.scabezas@gmail.com');
-  if (santiagoCarga.length >= 4) {
-    conclusiones.push(`Riesgo operacional: Santiago Cabezas tiene ${santiagoCarga.length} grupos asignados. Evaluar redistribución de carga.`);
+  if (!isGrupo) {
+    const tutoresConMuchosCarga = grupos.reduce((acc, g) => {
+      const key = g.tutor_correo;
+      acc[key] = acc[key] || { nombre: g.tutor_nombre, count: 0 };
+      acc[key].count++;
+      return acc;
+    }, {});
+    Object.values(tutoresConMuchosCarga).forEach(({ nombre, count }) => {
+      if (count >= 4) {
+        conclusiones.push(`Riesgo operacional: ${nombre} tiene ${count} grupos asignados. Evaluar redistribución de carga.`);
+      }
+    });
   }
 
   return conclusiones;
