@@ -129,7 +129,7 @@ export default function AttendanceEntry() {
   function marcarTodosA() {
     const newMap = {};
     for (const p of participants) {
-      newMap[p.rut] = { estado: 'A', pct_sesion: 100, hora_evento: '' };
+      newMap[p.rut] = { estado: 'P', pct_sesion: 100, hora_evento: '' };
     }
     setEstados(newMap);
   }

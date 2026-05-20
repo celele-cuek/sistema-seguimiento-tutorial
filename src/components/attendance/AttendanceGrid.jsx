@@ -2,10 +2,10 @@ import Badge from '../ui/Badge.jsx';
 import { pctDisplay } from '../../lib/utils.js';
 
 const COLORS = {
-  A:  { bg: 'bg-green-100', text: 'text-green-800' },
+  P:  { bg: 'bg-green-100', text: 'text-green-800' },
   R:  { bg: 'bg-amber-100', text: 'text-amber-800' },
   J:  { bg: 'bg-blue-100',  text: 'text-blue-800'  },
-  F:  { bg: 'bg-red-100',   text: 'text-red-800'   },
+  A:  { bg: 'bg-red-100',   text: 'text-red-800'   },
 };
 
 function EstadoChip({ estado, label }) {
@@ -101,10 +101,10 @@ export default function AttendanceGrid({ participants, asistencia, resumen, tota
       <div className="mt-3 px-3 pb-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500 border-t border-gray-100 pt-3">
         <span className="font-medium text-gray-600">Estados:</span>
         {[
-          { k: 'A', label: 'Asistió (100%)' },
+          { k: 'P', label: 'Presente (100%)' },
           { k: 'R', label: 'Retiro (0 – 50%)' },
           { k: 'J', label: 'Justificado (excluido)' },
-          { k: 'F', label: 'Falta (0%)' },
+          { k: 'A', label: 'Ausente (0%)' },
         ].map(({ k, label }) => {
           const { bg, text } = COLORS[k];
           return (

@@ -86,8 +86,8 @@ export function minutesDiff(time1, time2) {
 }
 
 export function calcPctSesion(estado, horaEvento, horaInicioSesion) {
-  if (estado === 'A') return 100;
-  if (estado === 'F') return 0;
+  if (estado === 'P') return 100;
+  if (estado === 'A') return 0;
   if (estado === 'J') return 0;
   if (estado === 'R') {
     if (!horaEvento || !horaInicioSesion) return 0;

@@ -44,7 +44,7 @@ export default function AttendanceRow({ participant, estado, observacion = '', o
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
-          {['A', 'R', 'J', 'F'].map(s => (
+          {['P', 'R', 'J', 'A'].map(s => (
             <StatusButton key={s} state={s} selected={estado?.estado} onClick={handleEstado} />
           ))}
         </div>

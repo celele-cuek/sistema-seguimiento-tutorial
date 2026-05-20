@@ -1,11 +1,11 @@
 import Tooltip from '../ui/Tooltip.jsx';
 
 const STATES = {
-  A: {
-    label: 'A',
+  P: {
+    label: 'P',
     color: 'bg-green-500 text-white border-green-500',
-    title: 'Asistió (100%)',
-    tooltip: 'Asistió — La persona participó en la sesión completa. Cuenta 100% de asistencia.',
+    title: 'Presente (100%)',
+    tooltip: 'Presente — La persona participó en la sesión completa. Cuenta 100% de asistencia.',
   },
   R: {
     label: 'R',
@@ -19,11 +19,11 @@ const STATES = {
     title: 'Justificado',
     tooltip: 'Ausencia justificada con documento. Cuenta 0% pero se excluye del denominador — no penaliza el promedio general.',
   },
-  F: {
-    label: 'F',
+  A: {
+    label: 'A',
     color: 'bg-red-500   text-white border-red-500',
-    title: 'Falta',
-    tooltip: 'Falta injustificada — 0% de asistencia. Suma al denominador y baja el promedio acumulado.',
+    title: 'Ausente',
+    tooltip: 'Ausente — 0% de asistencia. Suma al denominador y baja el promedio acumulado.',
   },
 };
 

@@ -51,7 +51,7 @@ export default function WeeklyGrid() {
         <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-blue-700 shrink-0">
           <HelpCircle size={13} className="shrink-0 mt-0.5" />
           <span>
-            Resumen visual de asistencia de todo el grupo semana a semana. Cada celda muestra el estado de la sesión TP o SE: <strong>A</strong> = asistió · <strong>R</strong> = retiro · <strong>J</strong> = justificado · <strong>F</strong> = falta · <strong>SE</strong> = sesión con experto.
+            Resumen visual de asistencia de todo el grupo semana a semana. Cada celda muestra el estado de la sesión TP o SE: <strong>P</strong> = presente · <strong>R</strong> = retiro · <strong>J</strong> = justificado · <strong>A</strong> = ausente · <strong>SE</strong> = sesión con experto.
             La columna <strong>% Acum.</strong> es el porcentaje de asistencia acumulado ponderado. La columna <strong>Alerta</strong> indica el nivel de riesgo actual.
           </span>
         </div>

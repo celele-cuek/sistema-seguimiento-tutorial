@@ -20,10 +20,10 @@ export function calcResumenParticipante(registros, config) {
   } = config;
 
   const cursadas = registros.filter(r => r.estado && r.estado !== '');
-  const asistidas = cursadas.filter(r => r.estado === 'A');
+  const asistidas = cursadas.filter(r => r.estado === 'P');
   const justificadas = cursadas.filter(r => r.estado === 'J');
   const retiros = cursadas.filter(r => r.estado === 'R');
-  const faltas = cursadas.filter(r => r.estado === 'F');
+  const faltas = cursadas.filter(r => r.estado === 'A');
 
   const denominador = cursadas.filter(r => r.estado !== 'J').length;
   const numeradorPts = cursadas.reduce((sum, r) => {

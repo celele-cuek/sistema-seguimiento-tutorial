@@ -4,7 +4,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import { readSheet, writeRow, clearAndWriteSheet, batchWrite } from '../../lib/sheetsApi.js';
 import { exportToExcel } from '../../lib/csvProcessor.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck } from 'lucide-react';
+import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck, RefreshCw } from 'lucide-react';
 
 const ALL_SHEETS = ['CONFIGURACION', 'CALENDARIO', 'USUARIOS', 'PARTICIPANTES', 'ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'LOG', 'EVALUACIONES'];
 const DATA_SHEETS = ['ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'EVALUACIONES', 'LOG'];
@@ -27,6 +27,10 @@ export default function Backup() {
   const [deduping, setDeduping] = useState(false);
   const [dedupResult, setDedupResult] = useState(null);
   const [dedupError, setDedupError] = useState('');
+
+  const [migrating, setMigrating] = useState(false);
+  const [migrateResult, setMigrateResult] = useState(null);
+  const [migrateError, setMigrateError] = useState('');
 
   async function handleBackup() {
     setLoading(true);
@@ -103,6 +107,37 @@ export default function Backup() {
     }
   }
 
+  async function handleMigrateEstados() {
+    setMigrating(true);
+    setMigrateResult(null);
+    setMigrateError('');
+    try {
+      setProgress('Leyendo ASISTENCIA…');
+      const rows = await readSheet('ASISTENCIA');
+      let convertidos = 0;
+      const migrated = rows.map(r => {
+        if (r.estado === 'A') { convertidos++; return { ...r, estado: 'P' }; }
+        if (r.estado === 'F') { convertidos++; return { ...r, estado: 'A' }; }
+        return r;
+      });
+      if (convertidos === 0) {
+        setMigrateResult({ convertidos: 0, total: rows.length });
+        setProgress('');
+        return;
+      }
+      setProgress(`Reescribiendo ${migrated.length} registros…`);
+      await clearAndWriteSheet('ASISTENCIA', migrated);
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'MIGRAR_ESTADOS', entidad: 'ASISTENCIA', grupo: '', semana: '', detalle: `${convertidos} registros convertidos (A→P / F→A)`, ip: '' });
+      setMigrateResult({ convertidos, total: migrated.length });
+      setProgress('');
+    } catch (err) {
+      setMigrateError('Error: ' + err.message);
+      setProgress('');
+    } finally {
+      setMigrating(false);
+    }
+  }
+
   async function handleSeedTPSE() {
     setSeedingTPSE(true);
     setSeedTPSEDone(false);
@@ -115,11 +150,11 @@ export default function Backup() {
 
       // 5 attendance patterns (TP,SE per week) covering OK, ALERTA and CRÍTICO levels
       const PATTERNS = [
-        [['A','A'],['A','A'],['A','F'],['A','A'],['A','A']], // ~90% OK
-        [['A','A'],['A','A'],['A','A'],['A','A'],['A','A']], // 100% OK
-        [['A','A'],['A','F'],['J','A'],['F','R'],['A','F']], // ~61% CRÍTICO
-        [['A','A'],['A','F'],['J','A'],['A','R'],['F','A']], // ~72% ALERTA
-        [['A','A'],['A','A'],['R','A'],['A','J'],['A','A']], // ~94% OK
+        [['P','P'],['P','P'],['P','A'],['P','P'],['P','P']], // ~90% OK
+        [['P','P'],['P','P'],['P','P'],['P','P'],['P','P']], // 100% OK
+        [['P','P'],['P','A'],['J','P'],['A','R'],['P','A']], // ~61% CRÍTICO
+        [['P','P'],['P','A'],['J','P'],['P','R'],['A','P']], // ~72% ALERTA
+        [['P','P'],['P','P'],['R','P'],['P','J'],['P','P']], // ~94% OK
       ];
       const SEMANAS = [1, 2, 3, 4, 5];
 
@@ -145,7 +180,7 @@ export default function Backup() {
             const [tpE, seE] = pattern[wi];
 
             for (const [tipo, estado] of [['TP', tpE], ['SE', seE]]) {
-              const pctSesion = estado === 'A' ? 100 : estado === 'R' ? 50 : 0;
+              const pctSesion = estado === 'P' ? 100 : estado === 'R' ? 50 : 0;
               asistenciaRows.push({
                 id: generateId(), rut_participante: p.rut, grupo: grupoId,
                 semana: String(semana), tipo_sesion: tipo, fecha_sesion: '',
@@ -156,9 +191,9 @@ export default function Backup() {
               if (estado === 'J') { cj++; }
               else {
                 cursadas++;
-                asistidas += estado === 'A' ? 1 : estado === 'R' ? 0.5 : 0;
+                asistidas += estado === 'P' ? 1 : estado === 'R' ? 0.5 : 0;
                 if (estado === 'R') cr++;
-                if (estado === 'F') cf++;
+                if (estado === 'A') cf++;
               }
             }
           }
@@ -315,6 +350,41 @@ export default function Backup() {
             style={{ background: '#ca8a04' }}>
             <ShieldCheck size={15} />
             {deduping ? 'Limpiando…' : 'Limpiar duplicados'}
+          </button>
+        </div>
+
+        {/* Migrar nomenclatura estados */}
+        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-orange-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-50">
+              <RefreshCw size={18} className="text-orange-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Migrar nomenclatura de asistencia</h2>
+              <p className="text-sm text-gray-500">Convierte registros con estados anteriores: A→P (Presente) y F→A (Ausente)</p>
+            </div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+            <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">Haz un <strong>backup completo</strong> antes de ejecutar. Esta acción reescribe la hoja ASISTENCIA.</p>
+          </div>
+          {progress && migrating && <p className="text-sm text-gray-500">{progress}</p>}
+          {migrateError && <p className="text-sm text-red-600">{migrateError}</p>}
+          {migrateResult && (
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm">
+                {migrateResult.convertidos === 0
+                  ? `Sin registros que migrar — ${migrateResult.total} filas ya usan la nueva nomenclatura.`
+                  : `${migrateResult.convertidos} registros convertidos de ${migrateResult.total} totales.`}
+              </span>
+            </div>
+          )}
+          <button onClick={handleMigrateEstados} disabled={migrating}
+            className="flex items-center gap-2 self-start px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40"
+            style={{ background: '#ea580c' }}>
+            <RefreshCw size={15} />
+            {migrating ? 'Migrando…' : 'Migrar A→P / F→A'}
           </button>
         </div>
 
