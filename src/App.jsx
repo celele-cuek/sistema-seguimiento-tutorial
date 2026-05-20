@@ -23,6 +23,7 @@ const NominaManager      = lazy(() => import('./pages/coordinator/NominaManager.
 const TeamStatus         = lazy(() => import('./pages/coordinator/TeamStatus.jsx'));
 const Reports            = lazy(() => import('./pages/coordinator/Reports.jsx'));
 const CoordProfile       = lazy(() => import('./pages/coordinator/ParticipantProfile.jsx'));
+const CoordNovedades     = lazy(() => import('./pages/coordinator/Novedades.jsx'));
 
 const CourseConfig       = lazy(() => import('./pages/admin/CourseConfig.jsx'));
 const NominaImport       = lazy(() => import('./pages/admin/NominaImport.jsx'));
@@ -138,6 +139,11 @@ export default function App() {
             <Route path="/coord/panel" element={
               <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
                 <AppLayout><CoordPanel /></AppLayout>
+              </RequireAuth>
+            } />
+            <Route path="/coord/novedades" element={
+              <RequireAuth roles={['COORD', 'ADMIN', 'ASISTENTE']}>
+                <AppLayout><CoordNovedades /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/coord/alerts" element={

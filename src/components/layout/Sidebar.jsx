@@ -154,6 +154,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         {showCoord && (
           <SidebarSection title={collapsed ? '' : 'Coordinación'}>
             <NavItem to="/coord/panel" icon={BarChart3} label="Panel general" />
+            <NavItem to="/coord/novedades" icon={MessageSquare} label="Novedades" />
             <NavItem to="/coord/alerts" icon={AlertTriangle} label="Alertas críticas" />
             <NavItem to="/coord/nomina" icon={Users} label="Nómina" />
             <NavItem to="/coord/team" icon={UserCog} label="Equipo tutores" />
