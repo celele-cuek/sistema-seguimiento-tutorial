@@ -5,7 +5,7 @@ import Badge from '../../components/ui/Badge.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { pctDisplay } from '../../lib/utils.js';
+import { pctDisplay, todayISO } from '../../lib/utils.js';
 import { HelpCircle, FileSpreadsheet } from 'lucide-react';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
 import * as XLSX from 'xlsx';
@@ -97,7 +97,7 @@ export default function CriticalAlerts() {
     const label = filtroGrupo ? `_${filtroGrupo}` : '';
     const nivel = filtroNivel === 'TODOS' ? 'alertas' : filtroNivel.toLowerCase();
     XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
-    const fecha = new Date().toISOString().split('T')[0];
+    const fecha = todayISO();
     XLSX.writeFile(wb, `contactos_${nivel}${label}_${fecha}.xlsx`);
   }
 

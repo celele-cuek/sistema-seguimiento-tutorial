@@ -4,7 +4,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
 import { generatePDF, generateInformeText } from '../../lib/pdfGenerator.js';
-import { pctDisplay, formatDate } from '../../lib/utils.js';
+import { pctDisplay, formatDate, todayISO } from '../../lib/utils.js';
 import { GRUPOS_SEED, USUARIOS_SEED } from '../../lib/seedData.js';
 import * as XLSX from 'xlsx';
 import { FileText, Download, HelpCircle, FileSpreadsheet } from 'lucide-react';
@@ -150,7 +150,7 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, ws1, 'Contactos críticos');
       XLSX.utils.book_append_sheet(wb, ws2, 'Estado tutores');
 
-      const fecha = new Date().toISOString().split('T')[0];
+      const fecha = todayISO();
       XLSX.writeFile(wb, `informe_contactos_${fecha}.xlsx`);
     } catch (err) { console.error(err); }
     finally { setLoadingXls(false); }
