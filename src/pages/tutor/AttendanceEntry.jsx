@@ -126,7 +126,7 @@ export default function AttendanceEntry() {
     setObservaciones(prev => ({ ...prev, [rut]: obs }));
   }
 
-  function marcarTodosA() {
+  function marcarTodosP() {
     const newMap = {};
     for (const p of participants) {
       newMap[p.rut] = { estado: 'P', pct_sesion: 100, hora_evento: '' };
@@ -184,7 +184,7 @@ export default function AttendanceEntry() {
             grupo,
             rut_participante: p.rut,
             nombre_participante: p.nombre_completo,
-            tipo_novedad: estados[p.rut]?.estado === 'R' ? 'Retiro en primera hora' : estados[p.rut]?.estado === 'J' ? 'Ausencia justificada (con documento)' : 'Contacto realizado por tutor/a',
+            tipo_novedad: estados[p.rut]?.estado === 'R' ? 'Retiro en primera hora' : estados[p.rut]?.estado === 'J' ? 'Ausencia justificada (con documento)' : estados[p.rut]?.estado === 'A' ? 'Ausencia injustificada' : 'Contacto realizado por tutor/a',
             hora_evento: estados[p.rut]?.hora_evento || '',
             estado_caso: 'Pendiente',
             requiere_seguimiento: 'No',
@@ -372,9 +372,9 @@ export default function AttendanceEntry() {
                     Promedio sesión: <span className="text-[var(--color-verde)]">{Math.round(pctGrupo)}%</span>
                   </div>
                 )}
-                <button onClick={marcarTodosA}
+                <button onClick={marcarTodosP}
                   className="text-xs px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 font-medium transition-colors">
-                  Marcar todos A
+                  Marcar todos P
                 </button>
                 <button onClick={() => setStep(0)}
                   className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
