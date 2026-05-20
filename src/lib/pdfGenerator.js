@@ -42,12 +42,22 @@ export function generateInformeText(data, config) {
 
   const criticos = resumen.filter(r => r.alerta_max === 'CRÍTICO');
   const enAlerta = resumen.filter(r => r.alerta_max === 'ALERTA');
-  const pctGlobal = resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / (resumen.length || 1);
+
+  // pct_asistencia is stored as 0-1 fraction; normalize to 0-100 for display and comparison
+  const normPct = v => { const n = Number(v) || 0; return n > 1 ? n : n * 100; };
+  const pctGlobal = resumen.length
+    ? resumen.reduce((s, r) => s + normPct(r.pct_asistencia), 0) / resumen.length
+    : null;
+
+  const umbralCrit = config.umbral_critico || 70;
+  const umbralAlert = config.umbral_alerta || 75;
   const scope = isGrupo ? 'del grupo' : 'global';
 
-  if (pctGlobal < (config.umbral_critico || 70)) {
-    conclusiones.push(`La asistencia promedio ${scope} (${Math.round(pctGlobal)}%) está por debajo del umbral crítico (${config.umbral_critico || 70}%). Se requiere intervención inmediata.`);
-  } else if (pctGlobal < (config.umbral_alerta || 85)) {
+  if (pctGlobal === null) {
+    conclusiones.push(`Sin datos de asistencia registrados para el período seleccionado.`);
+  } else if (pctGlobal <= umbralCrit) {
+    conclusiones.push(`La asistencia promedio ${scope} (${Math.round(pctGlobal)}%) está por debajo del umbral crítico (${umbralCrit}%). Se requiere intervención inmediata.`);
+  } else if (pctGlobal <= umbralAlert) {
     conclusiones.push(`La asistencia promedio ${scope} (${Math.round(pctGlobal)}%) está en zona de alerta. Monitorear de cerca.`);
   } else {
     conclusiones.push(`La asistencia promedio ${scope} es ${Math.round(pctGlobal)}%, por sobre los umbrales de alerta.`);
