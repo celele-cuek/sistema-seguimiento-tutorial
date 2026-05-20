@@ -46,8 +46,9 @@ export default function Novedades() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [grupo, setGrupo] = useState(grupos[0] || '');
 
-  const [editando, setEditando] = useState(null); // novedad completa cuando se edita
+  const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(FORM_VACIO);
+  const [detalle, setDetalle] = useState(null);
 
   useEffect(() => {
     if (baseGrupos.length === 0) {
@@ -162,15 +163,22 @@ export default function Novedades() {
     { key: 'fecha_registro', label: 'Fecha', render: (v) => formatDateTime(v) },
     { key: 'nombre_participante', label: 'Participante' },
     { key: 'tipo_novedad', label: 'Tipo' },
-    { key: 'estado_caso', label: 'Estado', render: (v) => <Badge nivel={ALERTA_MAP[v] || 'OK'} className="text-xs" /> },
+    {
+      key: 'estado_caso',
+      label: 'Estado',
+      render: (v) => (
+        <span className="flex items-center gap-1.5">
+          <Badge nivel={ALERTA_MAP[v] || 'OK'} className="text-xs" />
+          <span className="text-xs text-gray-500">{v}</span>
+        </span>
+      ),
+    },
     {
       key: 'observacion',
       label: 'Observación',
-      render: (v) => v ? (
-        <Tooltip content={v}>
-          <span className="text-xs text-gray-600 max-w-xs line-clamp-2 block cursor-help">{v}</span>
-        </Tooltip>
-      ) : <span className="text-xs text-gray-300">—</span>
+      render: (v) => v
+        ? <span className="text-xs text-gray-600 max-w-xs truncate block">{v}</span>
+        : <span className="text-xs text-gray-300">—</span>
     },
     {
       key: '_edit',
@@ -227,8 +235,7 @@ export default function Novedades() {
           <HelpCircle size={13} className="shrink-0 mt-0.5" />
           <span>
             Las novedades permiten registrar y hacer seguimiento de situaciones que afectan la participación.
-            Actualiza el <strong>estado del caso</strong> a medida que avanza el seguimiento.
-            Pasa el cursor sobre la observación para leer el texto completo. Usa el lápiz para editar.
+            Haz clic en una fila para ver el detalle completo. Usa el lápiz para editar.
           </span>
         </div>
 
@@ -245,8 +252,60 @@ export default function Novedades() {
           </select>
         </div>
 
-        <DataTable columns={columns} data={filtered} emptyText="Sin novedades registradas" searchable />
+        <DataTable columns={columns} data={filtered} emptyText="Sin novedades registradas" searchable onRowClick={row => setDetalle(row)} />
       </div>
+
+      {/* Detail modal */}
+      <Modal open={!!detalle} onClose={() => setDetalle(null)} title="Detalle de novedad" size="lg"
+        footer={
+          <>
+            <button onClick={() => setDetalle(null)} className="px-4 py-2 rounded-lg text-sm text-gray-600 border border-gray-200 hover:bg-gray-50">Cerrar</button>
+            <button onClick={() => { const d = detalle; setDetalle(null); openEdit(d); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
+              <Pencil size={13} /> Editar
+            </button>
+          </>
+        }
+      >
+        {detalle && (
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-3 gap-3">
+              <NovField label="Participante"><span className="font-medium">{detalle.nombre_participante || detalle.rut_participante}</span></NovField>
+              <NovField label="Semana / Sesión">Sem. {detalle.semana} · {detalle.tipo_sesion || '—'}</NovField>
+              <NovField label="Hora evento">{detalle.hora_evento || '—'}</NovField>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <NovField label="Tipo de novedad">{detalle.tipo_novedad || '—'}</NovField>
+              <NovField label="Requiere seguimiento">{detalle.requiere_seguimiento || '—'}</NovField>
+            </div>
+            <NovField label="Estado del caso">
+              <span className="flex items-center gap-2 mt-0.5">
+                <Badge nivel={ALERTA_MAP[detalle.estado_caso] || 'OK'} />
+                <span className="text-sm text-gray-700">{detalle.estado_caso}</span>
+              </span>
+            </NovField>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observación</p>
+              {detalle.observacion
+                ? <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-4 py-3 whitespace-pre-wrap leading-relaxed">{detalle.observacion}</p>
+                : <p className="text-sm text-gray-400 italic">Sin observación registrada.</p>
+              }
+            </div>
+            <div className="border-t border-gray-100 pt-4 grid grid-cols-2 gap-3 text-xs text-gray-400">
+              <div>
+                <span className="font-medium">Registrado por:</span> {detalle.registrado_por || '—'}<br />
+                <span className="font-medium">Fecha:</span> {formatDateTime(detalle.fecha_registro)}
+              </div>
+              {detalle.editado_por && (
+                <div>
+                  <span className="font-medium">Editado por:</span> {detalle.editado_por}<br />
+                  <span className="font-medium">Fecha edición:</span> {formatDateTime(detalle.fecha_edicion)}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={showModal} onClose={closeModal} title={editando ? 'Editar novedad' : 'Registrar novedad'} size="md"
         footer={
@@ -360,6 +419,15 @@ export default function Novedades() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function NovField({ label, children }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+      <div className="text-sm text-gray-800">{children}</div>
     </div>
   );
 }
