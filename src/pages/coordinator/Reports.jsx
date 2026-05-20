@@ -86,7 +86,7 @@ export default function Reports() {
           'Función':           p.funcion_principal,
           'Establecimiento':   p.establecimiento,
           '% Asistencia':      r.pct_asistencia ? `${r.pct_asistencia}%` : '',
-          'Inasistencias':     r.contador_f,
+          'Inasistencias':     r.contador_a,
           'Justificadas':      r.contador_j,
           'Retiros':           r.contador_r,
           'Razón(es)':         razones(r),

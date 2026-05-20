@@ -55,7 +55,7 @@ export function calcResumenParticipante(registros, config) {
     sesiones_asistidas: asistidas.length,
     contador_j: justificadas.length,
     contador_r: retiros.length,
-    contador_f: faltas.length,
+    contador_a: faltas.length,
     alerta_asistencia,
     alerta_justificaciones,
     alerta_retiros,

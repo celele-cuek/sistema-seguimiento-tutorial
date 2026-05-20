@@ -125,9 +125,22 @@ export default function Backup() {
         setProgress('');
         return;
       }
-      setProgress(`Reescribiendo ${migrated.length} registros…`);
+      setProgress(`Reescribiendo ${migrated.length} registros de ASISTENCIA…`);
       await clearAndWriteSheet('ASISTENCIA', migrated);
-      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'MIGRAR_ESTADOS', entidad: 'ASISTENCIA', grupo: '', semana: '', detalle: `${convertidos} registros convertidos (A→P / F→A)`, ip: '' });
+
+      // Renombrar contador_f → contador_a en RESUMEN_PARTICIPANTE
+      setProgress('Actualizando encabezado RESUMEN_PARTICIPANTE…');
+      const resumen = await readSheet('RESUMEN_PARTICIPANTE');
+      const resumenMigrado = resumen.map(r => {
+        if ('contador_f' in r) {
+          const { contador_f, ...rest } = r;
+          return { ...rest, contador_a: contador_f };
+        }
+        return r;
+      });
+      if (resumen.length > 0) await clearAndWriteSheet('RESUMEN_PARTICIPANTE', resumenMigrado);
+
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'MIGRAR_ESTADOS', entidad: 'ASISTENCIA', grupo: '', semana: '', detalle: `${convertidos} registros convertidos (A→P / F→A) + renombre contador_f→contador_a`, ip: '' });
       setMigrateResult({ convertidos, total: migrated.length });
       setProgress('');
     } catch (err) {
@@ -208,7 +221,7 @@ export default function Backup() {
           resumenRows.push({
             rut: p.rut, grupo: grupoId, pct_asistencia: String(pct),
             sesiones_cursadas: String(cursadas), sesiones_asistidas: String(asistidas),
-            contador_j: String(cj), contador_r: String(cr), contador_f: String(cf),
+            contador_j: String(cj), contador_r: String(cr), contador_a: String(cf),
             alerta_asistencia: aAs, alerta_justificaciones: aJ, alerta_retiros: aR,
             alerta_logro: 'OK', alerta_moodle: 'OK', alerta_max: alertaMax,
             ultima_sesion_registrada: '5', fecha_ultimo_registro: now,

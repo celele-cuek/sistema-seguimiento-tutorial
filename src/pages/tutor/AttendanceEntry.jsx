@@ -234,7 +234,7 @@ export default function AttendanceEntry() {
         sesiones_asistidas: calc.sesiones_asistidas,
         contador_j: calc.contador_j,
         contador_r: calc.contador_r,
-        contador_f: calc.contador_f,
+        contador_a: calc.contador_a,
         alerta_asistencia: calc.alerta_asistencia,
         alerta_justificaciones: calc.alerta_justificaciones ? 'ALERTA' : 'OK',
         alerta_retiros: calc.alerta_retiros ? 'ALERTA' : 'OK',
