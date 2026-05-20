@@ -49,20 +49,26 @@ function deriveSystemWeek(dateStr, grupo, fechaInicio) {
   const wd = DIA_WEEKDAY[grupoInfo.dia_tutoria];
   if (wd == null) return null;
 
-  // First occurrence of that weekday >= fechaInicio
-  let start = new Date(fechaInicio);
+  // Use localDate() to avoid UTC midnight → wrong weekday in Chile (UTC-3/4)
+  let start = localDate(fechaInicio);
   while (start.getDay() !== wd) start.setDate(start.getDate() + 1);
 
-  const target = new Date(dateStr);
+  const target = localDate(dateStr);
   const diffDays = Math.round((target - start) / 86_400_000);
   if (diffDays < 0) return null;
   return Math.floor(diffDays / 7) + 1;
 }
 
+// Parse YYYY-MM-DD as local date (avoids UTC midnight → wrong day in Chile timezone)
+function localDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function addWeeks(dateStr, n) {
-  const d = new Date(dateStr);
+  const d = localDate(dateStr);
   d.setDate(d.getDate() + n * 7);
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function mapEstado(val) {
