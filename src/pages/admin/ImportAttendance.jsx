@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import Topbar from '../../components/layout/Topbar.jsx';
-import { readSheet, batchWrite, writeRow } from '../../lib/sheetsApi.js';
+import { readSheet, batchWrite, writeRow, updateRow } from '../../lib/sheetsApi.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { calcResumenParticipante } from '../../lib/alertEngine.js';
 import { generateId, nowISO } from '../../lib/utils.js';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
 import * as XLSX from 'xlsx';
@@ -296,14 +297,54 @@ export default function ImportAttendance() {
 
       if (rows.length) {
         await batchWrite('ASISTENCIA', rows);
-        const grupos = [...new Set(toImport.map(r => r.grupo))].join(',');
+        const gruposImportados = [...new Set(toImport.map(r => r.grupo))];
         const semanas = [...new Set(toImport.map(r => r.semana))].join(',');
         await writeRow('LOG', {
           id: generateId(), datetime: now, usuario: auth.email, rol_activo: 'ADMIN',
           accion: 'IMPORTAR_ASISTENCIA', entidad: 'ASISTENCIA',
-          grupo: grupos, semana: semanas,
+          grupo: gruposImportados.join(','), semana: semanas,
           detalle: `${rows.length} registros importados desde planillas Excel`, ip: '',
         });
+
+        // Recalculate RESUMEN_PARTICIPANTE for all affected participants
+        const [allAsist, allParts, currentResumen] = await Promise.all([
+          readSheet('ASISTENCIA'),
+          readSheet('PARTICIPANTES'),
+          readSheet('RESUMEN_PARTICIPANTE'),
+        ]);
+        const affectedParts = allParts.filter(
+          p => gruposImportados.includes(p.grupo) && p.estado !== 'Inactivo'
+        );
+        const now2 = nowISO();
+        for (const p of affectedParts) {
+          const registros = allAsist.filter(r => r.rut_participante === p.rut);
+          const calc = calcResumenParticipante(registros, config || {});
+          const existing = currentResumen.find(r => r.rut === p.rut);
+          const row = {
+            rut: p.rut, grupo: p.grupo,
+            pct_asistencia: calc.pct_asistencia ?? '',
+            sesiones_cursadas: calc.sesiones_cursadas,
+            sesiones_asistidas: calc.sesiones_asistidas,
+            contador_j: calc.contador_j,
+            contador_r: calc.contador_r,
+            contador_a: calc.contador_a,
+            alerta_asistencia: calc.alerta_asistencia,
+            alerta_justificaciones: calc.alerta_justificaciones ? 'ALERTA' : 'OK',
+            alerta_retiros: calc.alerta_retiros ? 'ALERTA' : 'OK',
+            alerta_logro: 'OK',
+            alerta_moodle: 'OK',
+            alerta_max: calc.alerta_max,
+            ultima_sesion_registrada: calc.ultima_sesion_registrada,
+            fecha_ultimo_registro: now2.split('T')[0],
+            logro_promedio: '',
+            evaluaciones_bajo_umbral: 0,
+          };
+          if (existing) {
+            await updateRow('RESUMEN_PARTICIPANTE', existing._rowIndex, row);
+          } else {
+            await writeRow('RESUMEN_PARTICIPANTE', row);
+          }
+        }
       }
 
       // Build per-group breakdown for result screen
