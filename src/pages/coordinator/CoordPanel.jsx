@@ -101,7 +101,7 @@ export default function CoordPanel() {
           <Tooltip content="Promedio de asistencia ponderado sobre todos los participantes y todas las sesiones registradas hasta la fecha. Incluye TP y SE.">
             <div className="bg-white rounded-xl shadow-sm p-4 text-center cursor-default">
               <div className="text-2xl font-bold text-gray-700">
-                {resumen.length ? pctDisplay(resumen.reduce((s, r) => s + (Number(r.pct_asistencia) || 0), 0) / resumen.length) : '—'}
+                {resumen.length ? pctDisplay(resumen.reduce((s, r) => s + normPct(r.pct_asistencia), 0) / resumen.length) : '—'}
               </div>
               <div className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
                 Asistencia global <HelpCircle size={10} className="text-gray-300" />

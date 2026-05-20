@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useConfig } from '../../contexts/ConfigContext.jsx';
 import Topbar from '../../components/layout/Topbar.jsx';
 import { readSheet, writeRow, clearAndWriteSheet, batchWrite } from '../../lib/sheetsApi.js';
+import { calcResumenParticipante } from '../../lib/alertEngine.js';
 import { exportToExcel } from '../../lib/csvProcessor.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck, RefreshCw, Upload } from 'lucide-react';
+import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck, RefreshCw, Upload, Calculator } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const ALL_SHEETS = ['CONFIGURACION', 'CALENDARIO', 'USUARIOS', 'PARTICIPANTES', 'ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'LOG', 'EVALUACIONES'];
@@ -12,6 +14,7 @@ const DATA_SHEETS = ['ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_
 
 export default function Backup() {
   const { auth } = useAuth();
+  const { config } = useConfig();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [progress, setProgress] = useState('');
@@ -36,6 +39,10 @@ export default function Backup() {
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState(null);
   const [restoreError, setRestoreError] = useState('');
+
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcResult, setRecalcResult] = useState(null);
+  const [recalcError, setRecalcError] = useState('');
 
   async function handleBackup() {
     setLoading(true);
@@ -291,6 +298,59 @@ export default function Backup() {
     }
   }
 
+  async function handleRecalcularResumen() {
+    setRecalculating(true);
+    setRecalcResult(null);
+    setRecalcError('');
+    try {
+      setProgress('Leyendo ASISTENCIA y PARTICIPANTES…');
+      const [asistencia, participantes] = await Promise.all([
+        readSheet('ASISTENCIA'),
+        readSheet('PARTICIPANTES'),
+      ]);
+      const activeParts = participantes.filter(p => p.estado !== 'Inactivo');
+      setProgress(`Calculando resumen para ${activeParts.length} participantes…`);
+      const today = nowISO().split('T')[0];
+      const resumenRows = activeParts.map(p => {
+        const registros = asistencia.filter(r => r.rut_participante === p.rut);
+        const calc = calcResumenParticipante(registros, config || {});
+        return {
+          rut: p.rut, grupo: p.grupo,
+          pct_asistencia: calc.pct_asistencia ?? '',
+          sesiones_cursadas: calc.sesiones_cursadas,
+          sesiones_asistidas: calc.sesiones_asistidas,
+          contador_j: calc.contador_j,
+          contador_r: calc.contador_r,
+          contador_a: calc.contador_a,
+          alerta_asistencia: calc.alerta_asistencia,
+          alerta_justificaciones: calc.alerta_justificaciones ? 'ALERTA' : 'OK',
+          alerta_retiros: calc.alerta_retiros ? 'ALERTA' : 'OK',
+          alerta_logro: 'OK',
+          alerta_moodle: 'OK',
+          alerta_max: calc.alerta_max,
+          ultima_sesion_registrada: calc.ultima_sesion_registrada,
+          fecha_ultimo_registro: today,
+          logro_promedio: '',
+          evaluaciones_bajo_umbral: 0,
+        };
+      });
+      setProgress('Escribiendo RESUMEN_PARTICIPANTE…');
+      await clearAndWriteSheet('RESUMEN_PARTICIPANTE', resumenRows);
+      await writeRow('LOG', {
+        id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN',
+        accion: 'RECALCULAR_RESUMEN', entidad: 'RESUMEN_PARTICIPANTE',
+        grupo: '', semana: '', detalle: `${resumenRows.length} participantes recalculados`, ip: '',
+      });
+      setRecalcResult(resumenRows.length);
+      setProgress('');
+    } catch (err) {
+      setRecalcError('Error: ' + err.message);
+      setProgress('');
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       <Topbar title="Backup y exportación" />
@@ -441,6 +501,33 @@ export default function Backup() {
             {restoring ? 'Restaurando…' : 'Seleccionar archivo backup…'}
             <input type="file" accept=".xlsx" className="hidden" onChange={handleRestoreAsistencia} disabled={restoring} />
           </label>
+        </div>
+
+        {/* Recalcular RESUMEN_PARTICIPANTE */}
+        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-green-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50">
+              <Calculator size={18} className="text-green-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Recalcular resumen de participantes</h2>
+              <p className="text-sm text-gray-500">Recalcula RESUMEN_PARTICIPANTE completo desde ASISTENCIA. Úsalo si el panel o los informes muestran grupos sin datos.</p>
+            </div>
+          </div>
+          {progress && recalculating && <p className="text-sm text-gray-500">{progress}</p>}
+          {recalcError && <p className="text-sm text-red-600">{recalcError}</p>}
+          {recalcResult !== null && (
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm">{recalcResult} participantes recalculados correctamente.</span>
+            </div>
+          )}
+          <button onClick={handleRecalcularResumen} disabled={recalculating}
+            className="flex items-center gap-2 self-start px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40"
+            style={{ background: 'var(--color-verde)' }}>
+            <Calculator size={15} />
+            {recalculating ? 'Calculando…' : 'Recalcular resumen'}
+          </button>
         </div>
 
         {/* Migrar nomenclatura estados */}
