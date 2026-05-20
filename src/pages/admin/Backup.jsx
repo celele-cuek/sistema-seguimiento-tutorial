@@ -4,7 +4,8 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import { readSheet, writeRow, clearAndWriteSheet, batchWrite } from '../../lib/sheetsApi.js';
 import { exportToExcel } from '../../lib/csvProcessor.js';
 import { generateId, nowISO } from '../../lib/utils.js';
-import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Database, Download, CheckCircle, Trash2, AlertTriangle, FlaskConical, ShieldCheck, RefreshCw, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const ALL_SHEETS = ['CONFIGURACION', 'CALENDARIO', 'USUARIOS', 'PARTICIPANTES', 'ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'LOG', 'EVALUACIONES'];
 const DATA_SHEETS = ['ASISTENCIA', 'RESUMEN_PARTICIPANTE', 'NOVEDADES', 'MOODLE_SEMANAL', 'EVALUACIONES', 'LOG'];
@@ -31,6 +32,10 @@ export default function Backup() {
   const [migrating, setMigrating] = useState(false);
   const [migrateResult, setMigrateResult] = useState(null);
   const [migrateError, setMigrateError] = useState('');
+
+  const [restoring, setRestoring] = useState(false);
+  const [restoreResult, setRestoreResult] = useState(null);
+  const [restoreError, setRestoreError] = useState('');
 
   async function handleBackup() {
     setLoading(true);
@@ -107,6 +112,33 @@ export default function Backup() {
     }
   }
 
+  async function handleRestoreAsistencia(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoring(true);
+    setRestoreResult(null);
+    setRestoreError('');
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const ws = wb.Sheets['ASISTENCIA'];
+      if (!ws) throw new Error('El archivo no contiene una hoja llamada ASISTENCIA.');
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) throw new Error('La hoja ASISTENCIA está vacía.');
+      setProgress(`Restaurando ${rows.length} registros…`);
+      await clearAndWriteSheet('ASISTENCIA', rows);
+      await writeRow('LOG', { id: generateId(), datetime: nowISO(), usuario: auth.email, rol_activo: 'ADMIN', accion: 'RESTAURAR_ASISTENCIA', entidad: 'ASISTENCIA', grupo: '', semana: '', detalle: `${rows.length} registros restaurados desde backup`, ip: '' });
+      setRestoreResult(rows.length);
+      setProgress('');
+    } catch (err) {
+      setRestoreError('Error: ' + err.message);
+      setProgress('');
+    } finally {
+      setRestoring(false);
+      e.target.value = '';
+    }
+  }
+
   async function handleMigrateEstados() {
     setMigrating(true);
     setMigrateResult(null);
@@ -114,6 +146,20 @@ export default function Backup() {
     try {
       setProgress('Leyendo ASISTENCIA…');
       const rows = await readSheet('ASISTENCIA');
+      // Solo migrar si existen registros con nomenclatura antigua (F=Falta)
+      const hasOldNomenclature = rows.some(r => r.estado === 'F' || r.estado === 'A');
+      if (!hasOldNomenclature) {
+        setMigrateResult({ convertidos: 0, total: rows.length });
+        setProgress('');
+        return;
+      }
+      // Verificación adicional: si no hay ningún 'F', los 'A' ya son Ausente (nueva nomenclatura)
+      const hasF = rows.some(r => r.estado === 'F');
+      if (!hasF) {
+        setMigrateError('No se encontraron registros con estado "F". La migración ya fue ejecutada. Si hay un problema de datos, restaura desde backup.');
+        setProgress('');
+        return;
+      }
       let convertidos = 0;
       const migrated = rows.map(r => {
         if (r.estado === 'A') { convertidos++; return { ...r, estado: 'P' }; }
@@ -364,6 +410,37 @@ export default function Backup() {
             <ShieldCheck size={15} />
             {deduping ? 'Limpiando…' : 'Limpiar duplicados'}
           </button>
+        </div>
+
+        {/* Restaurar ASISTENCIA desde backup */}
+        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-4 border border-blue-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50">
+              <Upload size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Restaurar ASISTENCIA desde backup</h2>
+              <p className="text-sm text-gray-500">Sube el archivo Excel de backup para recuperar la hoja ASISTENCIA</p>
+            </div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+            <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">Esto reemplaza <strong>todos</strong> los registros actuales de ASISTENCIA con los del archivo seleccionado.</p>
+          </div>
+          {progress && restoring && <p className="text-sm text-gray-500">{progress}</p>}
+          {restoreError && <p className="text-sm text-red-600">{restoreError}</p>}
+          {restoreResult && (
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm">{restoreResult} registros restaurados correctamente.</span>
+            </div>
+          )}
+          <label className={`flex items-center gap-2 self-start px-5 py-2.5 rounded-xl text-white text-sm font-medium cursor-pointer ${restoring ? 'opacity-40 pointer-events-none' : ''}`}
+            style={{ background: '#2563eb' }}>
+            <Upload size={15} />
+            {restoring ? 'Restaurando…' : 'Seleccionar archivo backup…'}
+            <input type="file" accept=".xlsx" className="hidden" onChange={handleRestoreAsistencia} disabled={restoring} />
+          </label>
         </div>
 
         {/* Migrar nomenclatura estados */}
