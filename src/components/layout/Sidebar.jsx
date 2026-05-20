@@ -5,7 +5,7 @@ import { USUARIOS_SEED } from '../../lib/seedData.js';
 import {
   LayoutDashboard, ClipboardList, Grid3X3, MessageSquare, Upload,
   Users, BarChart3, AlertTriangle, FileText, Settings, Database,
-  LogOut, ChevronRight, BookOpen, Shield, UserCog, Sliders, Eye
+  LogOut, ChevronRight, BookOpen, Shield, UserCog, Sliders, Eye, FileInput,
 } from 'lucide-react';
 
 function NavItem({ to, icon: Icon, label, end = false }) {
@@ -166,10 +166,11 @@ export default function Sidebar({ collapsed, onToggle }) {
         {showAdmin && (
           <SidebarSection title={collapsed ? '' : 'Administración'}>
             <NavItem to="/admin/config" icon={Settings} label="Configuración" />
-            <NavItem to="/admin/nomina" icon={BookOpen} label="Nómina masiva" />
             <NavItem to="/admin/users" icon={Shield} label="Usuarios" />
-            <NavItem to="/admin/thresholds" icon={Settings} label="Umbrales" />
-            <NavItem to="/admin/backup" icon={Database} label="Backup" />
+            <NavItem to="/admin/nomina" icon={BookOpen} label="Nómina masiva" />
+            <NavItem to="/admin/import" icon={FileInput} label="Importar planillas" />
+            <NavItem to="/admin/thresholds" icon={Sliders} label="Umbrales" />
+            <NavItem to="/admin/backup" icon={Database} label="Datos / Backup" />
             <NavItem to="/admin/log" icon={ClipboardList} label="Auditoría" />
           </SidebarSection>
         )}

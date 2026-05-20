@@ -32,6 +32,7 @@ const Thresholds         = lazy(() => import('./pages/admin/Thresholds.jsx'));
 const CoordThresholds    = lazy(() => import('./pages/admin/Thresholds.jsx'));
 const Backup             = lazy(() => import('./pages/admin/Backup.jsx'));
 const AuditLog           = lazy(() => import('./pages/admin/AuditLog.jsx'));
+const ImportAttendance   = lazy(() => import('./pages/admin/ImportAttendance.jsx'));
 
 function Spinner() {
   return (
@@ -198,6 +199,11 @@ export default function App() {
             <Route path="/admin/thresholds" element={
               <RequireAuth roles={['ADMIN']}>
                 <AppLayout><Thresholds /></AppLayout>
+              </RequireAuth>
+            } />
+            <Route path="/admin/import" element={
+              <RequireAuth roles={['ADMIN']}>
+                <AppLayout><ImportAttendance /></AppLayout>
               </RequireAuth>
             } />
             <Route path="/admin/backup" element={
