@@ -136,6 +136,7 @@ export default function CriticalAlerts() {
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Participante</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Alerta</th>
                   <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">% Asist.</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Correo</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Contacto pref.</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Razón</th>
@@ -153,6 +154,7 @@ export default function CriticalAlerts() {
                     </td>
                     <td className="px-3 py-2"><Badge nivel={r.alerta_max} /></td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{r.pct_asistencia ? pctDisplay(Number(r.pct_asistencia)) : '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600">{p.correo || '—'}</td>
                     <td className="px-3 py-2 text-xs text-gray-600">{p.telefono || '—'}</td>
                     <td className="px-3 py-2 text-xs text-gray-600">{p.contacto_preferido || '—'}</td>
                     <td className="px-3 py-2 text-xs text-gray-400 max-w-[180px]">
