@@ -306,11 +306,21 @@ export default function ImportAttendance() {
         });
       }
 
+      // Build per-group breakdown for result screen
+      const allGrupos = [...new Set(candidates.map(r => r.grupo))].sort();
+      const byGrupoResult = allGrupos.map(g => ({
+        grupo: g,
+        archivo: candidates.find(r => r.grupo === g)?.archivo || '',
+        imported: candidates.filter(r => r.grupo === g && r.action === 'import').length,
+        skipped:  candidates.filter(r => r.grupo === g && r.action === 'skip').length,
+        noMatch:  candidates.filter(r => r.grupo === g && r.action === 'no-match').length,
+      }));
+
       setResult({
         imported: toImport.length,
         skipped: candidates.filter(r => r.action === 'skip').length,
         noMatch: candidates.filter(r => r.action === 'no-match').length,
-        grupos: [...new Set(toImport.map(r => r.grupo))],
+        byGrupo: byGrupoResult,
       });
       setStep('result');
     } catch (err) {
@@ -447,6 +457,53 @@ export default function ImportAttendance() {
                 label="RUT no encontrado" value={nNoMatch} color="red" />
             </div>
 
+            {/* Per-group summary table */}
+            {Object.keys(byGrupo).length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Resumen por grupo
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50">
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Grupo</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Archivo</th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-green-600 uppercase tracking-wide">Importar</th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-yellow-600 uppercase tracking-wide">Saltar</th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-red-500 uppercase tracking-wide">Sin RUT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(byGrupo).sort(([a],[b]) => a.localeCompare(b)).map(([grupo, rows]) => {
+                      const imp = rows.filter(r => r.action === 'import').length;
+                      const ski = rows.filter(r => r.action === 'skip').length;
+                      const nom = rows.filter(r => r.action === 'no-match').length;
+                      const archivo = rows[0]?.archivo || '';
+                      return (
+                        <tr key={grupo} className="border-b border-gray-50 hover:bg-gray-50/50">
+                          <td className="px-4 py-2.5 font-mono font-semibold text-gray-700">{grupo}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-400 truncate max-w-[200px]">{archivo}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className={`font-semibold ${imp > 0 ? 'text-green-600' : 'text-gray-300'}`}>{imp}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {ski > 0
+                              ? <span className="font-semibold text-yellow-600">{ski}</span>
+                              : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {nom > 0
+                              ? <span className="font-semibold text-red-500">{nom}</span>
+                              : <span className="text-gray-300">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             {/* Parse errors */}
             {parseErrors.length > 0 && (
               <div className="bg-red-50 border border-red-100 rounded-lg p-4 text-xs text-red-700 flex flex-col gap-1">
@@ -532,16 +589,12 @@ export default function ImportAttendance() {
 
         {/* ── STEP 3: Result ── */}
         {step === 'result' && result && (
-          <div className="flex flex-col items-center gap-6 py-10">
+          <div className="flex flex-col items-center gap-6 py-6">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
               <CheckCircle size={36} className="text-green-600" />
             </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-gray-800 mb-1">Importación completada</p>
-              <p className="text-sm text-gray-500">
-                Grupos: {result.grupos.join(', ')}
-              </p>
-            </div>
+            <p className="text-xl font-bold text-gray-800">Importación completada</p>
+
             <div className="grid grid-cols-3 gap-4 w-full max-w-lg">
               <SummaryCard icon={<CheckCircle size={20} className="text-green-600" />}
                 label="Importados" value={result.imported} color="green" />
@@ -550,10 +603,55 @@ export default function ImportAttendance() {
               <SummaryCard icon={<XCircle size={20} className="text-red-400" />}
                 label="Sin RUT" value={result.noMatch} color="red" />
             </div>
+
+            {/* Per-group breakdown */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden w-full max-w-2xl">
+              <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Detalle por grupo
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Grupo</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Archivo</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-green-600 uppercase tracking-wide">Importados</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-yellow-600 uppercase tracking-wide">Saltados</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-red-500 uppercase tracking-wide">Sin RUT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.byGrupo.map(g => (
+                    <tr key={g.grupo} className="border-b border-gray-50">
+                      <td className="px-4 py-2.5 font-mono font-semibold text-gray-700">{g.grupo}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-400 truncate max-w-[180px]">{g.archivo}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`font-semibold ${g.imported > 0 ? 'text-green-600' : 'text-gray-300'}`}>{g.imported}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {g.skipped > 0
+                          ? <span className="font-semibold text-yellow-600">{g.skipped}</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {g.noMatch > 0
+                          ? <span className="font-semibold text-red-500">{g.noMatch}</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             {result.noMatch > 0 && (
               <p className="text-xs text-red-500 text-center max-w-md">
-                {result.noMatch} participante{result.noMatch !== 1 ? 's' : ''} no se importó porque su RUT no coincide con la nómina del sistema.
-                Verifica la nómina en Admin &gt; Nómina masiva.
+                Los registros "Sin RUT" no se importaron porque el RUT no existe en la nómina del sistema.
+                Verifica en Admin › Nómina masiva.
+              </p>
+            )}
+            {result.skipped > 0 && (
+              <p className="text-xs text-yellow-600 text-center max-w-md">
+                Los registros "Saltados" ya existían en el sistema (duplicados). No se sobreescribieron.
               </p>
             )}
             <button onClick={reset} className="flex items-center gap-2 px-5 py-2 rounded-lg text-white text-sm font-medium"
