@@ -4,6 +4,7 @@ import Topbar from '../../components/layout/Topbar.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Tooltip from '../../components/ui/Tooltip.jsx';
 import { readSheet } from '../../lib/sheetsApi.js';
+import { useAuth } from '../../contexts/AuthContext.jsx';
 import { pctDisplay } from '../../lib/utils.js';
 import { HelpCircle, FileSpreadsheet } from 'lucide-react';
 import { GRUPOS_SEED } from '../../lib/seedData.js';
@@ -13,13 +14,28 @@ const ALERT_ORDER = { 'CRÍTICO': 0, 'ALERTA': 1, 'OK': 2 };
 
 export default function CriticalAlerts() {
   const navigate = useNavigate();
+  const { auth } = useAuth();
   const [resumen, setResumen] = useState([]);
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtro, setFiltro] = useState('TODOS');
+  const [filtroNivel, setFiltroNivel] = useState('TODOS');
+  const [filtroGrupo, setFiltroGrupo] = useState('');
 
   const tutorPorGrupo = {};
   GRUPOS_SEED.forEach(g => { tutorPorGrupo[g.id] = g.tutor_nombre; });
+
+  const isAsistente = auth?.roles?.includes('ASISTENTE') && !auth?.roles?.includes('COORD') && !auth?.roles?.includes('ADMIN');
+  const misGrupos = auth?.grupos || [];
+
+  // Grupos disponibles para el filtro: si es asistente con grupos → solo sus grupos; si no → todos
+  const gruposDisponibles = (isAsistente && misGrupos.length > 0)
+    ? GRUPOS_SEED.filter(g => misGrupos.includes(g.id))
+    : GRUPOS_SEED;
+
+  useEffect(() => {
+    // Pre-seleccionar el primer grupo para asistentes con grupos asignados
+    if (isAsistente && misGrupos.length > 0) setFiltroGrupo(misGrupos[0]);
+  }, []);
 
   useEffect(() => { load(); }, []);
 
@@ -37,7 +53,11 @@ export default function CriticalAlerts() {
   participantes.forEach(p => { partMap[p.rut] = p; });
 
   const rows = resumen
-    .filter(r => filtro === 'TODOS' ? (r.alerta_max === 'CRÍTICO' || r.alerta_max === 'ALERTA') : r.alerta_max === filtro)
+    .filter(r => {
+      const nivelOk = filtroNivel === 'TODOS' ? (r.alerta_max === 'CRÍTICO' || r.alerta_max === 'ALERTA') : r.alerta_max === filtroNivel;
+      const grupoOk = filtroGrupo ? r.grupo === filtroGrupo : (isAsistente && misGrupos.length > 0 ? misGrupos.includes(r.grupo) : true);
+      return nivelOk && grupoOk;
+    })
     .map(r => ({ ...r, p: partMap[r.rut] || {} }))
     .sort((a, b) =>
       (a.grupo || '').localeCompare(b.grupo || '') ||
@@ -74,16 +94,12 @@ export default function CriticalAlerts() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
     ws['!cols'] = [8,7,22,28,30,14,16,22,28,12,12,10,8,40].map(w => ({ wch: w }));
+    const label = filtroGrupo ? `_${filtroGrupo}` : '';
+    const nivel = filtroNivel === 'TODOS' ? 'alertas' : filtroNivel.toLowerCase();
     XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
     const fecha = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `contactos_alertas_${fecha}.xlsx`);
+    XLSX.writeFile(wb, `contactos_${nivel}${label}_${fecha}.xlsx`);
   }
-
-  const FILTRO_TIPS = {
-    'TODOS':    'Muestra todos los participantes con alguna alerta activa (crítica o de alerta).',
-    'CRÍTICO':  'Participantes bajo el umbral crítico. Requieren contacto inmediato.',
-    'ALERTA':   'Participantes en riesgo, entre los umbrales de alerta y crítico.',
-  };
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--color-verde)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -105,23 +121,34 @@ export default function CriticalAlerts() {
         <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-blue-700">
           <HelpCircle size={13} className="shrink-0 mt-0.5" />
           <span>
-            Participantes con alertas activas, ordenados por grupo. El Excel descarga correo, teléfono y contacto preferido de todos los que aparecen en la vista.
+            Participantes con alertas activas, ordenados por grupo. El Excel descarga los datos de contacto de los participantes visibles según los filtros activos.
           </span>
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-2">
             {['TODOS', 'CRÍTICO', 'ALERTA'].map(f => (
-              <Tooltip key={f} content={FILTRO_TIPS[f]}>
-                <button onClick={() => setFiltro(f)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filtro === f ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
-                  style={filtro === f ? { background: 'var(--color-verde)' } : {}}>
-                  {f}
-                </button>
-              </Tooltip>
+              <button key={f} onClick={() => setFiltroNivel(f)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filtroNivel === f ? 'text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                style={filtroNivel === f ? { background: 'var(--color-verde)' } : {}}>
+                {f}
+              </button>
             ))}
           </div>
-          <span className="text-sm text-gray-500">{rows.length} participante{rows.length !== 1 ? 's' : ''}</span>
+
+          <select
+            value={filtroGrupo}
+            onChange={e => setFiltroGrupo(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[var(--color-verde)] bg-white"
+          >
+            <option value="">{isAsistente && misGrupos.length > 0 ? 'Mis grupos' : 'Todos los grupos'}</option>
+            {gruposDisponibles.map(g => (
+              <option key={g.id} value={g.id}>{g.id} — {g.tutor_nombre}</option>
+            ))}
+          </select>
+
+          <span className="text-sm text-gray-500 ml-auto">{rows.length} participante{rows.length !== 1 ? 's' : ''}</span>
         </div>
 
         {rows.length === 0 ? (
