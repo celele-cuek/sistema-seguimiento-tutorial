@@ -30,7 +30,8 @@ function extractGrupo(filename) {
 function parseWeekHeader(h) {
   if (h == null) return null;
   const s = String(h).trim();
-  const withDate = s.match(/^(\d+)\s*\((\d{1,2})\.(\d{2})\)/);
+  // closing ) is optional — some tutors omit it: "1(18.05" vs "1(18.05)"
+  const withDate = s.match(/^(\d+)\s*\((\d{1,2})\.(\d{2})\)?/);
   if (withDate) {
     const [, sem, dd, mm] = withDate;
     return {
@@ -141,12 +142,6 @@ export default function ImportAttendance() {
       calRows.forEach(r => { if (r.fecha && r.semana) calMap[r.fecha] = { semana: r.semana, tipo: r.tipo_sesion || 'TP' }; });
 
       for (const file of files) {
-        const grupo = extractGrupo(file.name);
-        if (!grupo) {
-          errs.push(`${file.name}: no se pudo identificar el grupo del nombre.`);
-          continue;
-        }
-
         let wb;
         try {
           const buf = await file.arrayBuffer();
@@ -156,106 +151,127 @@ export default function ImportAttendance() {
           continue;
         }
 
-        if (!wb.SheetNames.includes(grupo)) {
-          errs.push(`${file.name}: la hoja "${grupo}" no existe.`);
-          continue;
-        }
-
-        const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[grupo], { header: 1, defval: null });
-        if (rawRows.length < 2) { errs.push(`${file.name}: sin datos.`); continue; }
-
-        const headerRow = rawRows[0];
-        const dataRows = rawRows.slice(1).filter(r => r[0] != null);
-
-        // Detect week columns (header starts with digit)
-        const weekCols = [];
-        for (let ci = 0; ci < headerRow.length; ci++) {
-          const parsed = parseWeekHeader(headerRow[ci]);
-          if (parsed) weekCols.push({ ci, ...parsed });
-        }
-
-        if (!weekCols.length) { errs.push(`${file.name}: no se encontraron columnas de semanas.`); continue; }
-
-        // Build semana map for all week columns
-        // Find anchor: first week col that has a date
-        const anchor = weekCols.find(wc => wc.dateStr);
-        let anchorSistema = null;
-        let anchorLocal = null;
-        let anchorDate = null;
-
-        if (anchor) {
-          // Try CALENDARIO first
-          if (calMap[anchor.dateStr]) {
-            anchorSistema = parseInt(calMap[anchor.dateStr].semana);
-          } else {
-            anchorSistema = deriveSystemWeek(anchor.dateStr, grupo, fechaInicio);
+        // Determine which group sheets to process:
+        // - If filename starts with a group ID and that sheet exists → single group (original behaviour)
+        // - Otherwise → scan all sheets for names matching [AB]\d\d (multi-group file)
+        const grupoDelNombre = extractGrupo(file.name);
+        let sheetGroups;
+        if (grupoDelNombre && wb.SheetNames.includes(grupoDelNombre)) {
+          sheetGroups = [{ grupo: grupoDelNombre, sheetName: grupoDelNombre }];
+        } else {
+          sheetGroups = wb.SheetNames
+            .filter(n => /^[AB]\d{2}$/i.test(n))
+            .map(n => ({ grupo: n.toUpperCase(), sheetName: n }));
+          if (!sheetGroups.length) {
+            errs.push(`${file.name}: no se pudo identificar ningún grupo (nombre de archivo ni hojas).`);
+            continue;
           }
-          anchorLocal = anchor.semanaLocal;
-          anchorDate = anchor.dateStr;
         }
 
-        for (const wc of weekCols) {
-          const { ci, semanaLocal, dateStr } = wc;
+        for (const { grupo, sheetName } of sheetGroups) {
+          const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null });
+          if (rawRows.length < 2) continue;
 
-          // Check if this column has any actual data
-          const colVals = dataRows.map(r => r[ci]);
-          const hasData = colVals.some(v => v != null && String(v).trim() !== '');
-          if (!hasData) continue;
-
-          // Derive system semana and fecha for this column
-          let sistemaSemana, fechaSesion;
-          if (anchorSistema && anchorLocal) {
-            const offset = semanaLocal - anchorLocal;
-            sistemaSemana = anchorSistema + offset;
-            fechaSesion = anchorDate ? addWeeks(anchorDate, offset) : (dateStr || '');
-          } else if (dateStr) {
-            sistemaSemana = deriveSystemWeek(dateStr, grupo, fechaInicio);
-            fechaSesion = dateStr;
+          // Auto-detect header row: first row (within rows 0-4) that has at least one week column
+          let headerRowIdx = 0;
+          let headerRow = rawRows[0];
+          let weekCols = [];
+          for (let ri = 0; ri < Math.min(5, rawRows.length); ri++) {
+            const candidate = rawRows[ri];
+            const cols = [];
+            for (let ci = 0; ci < candidate.length; ci++) {
+              const parsed = parseWeekHeader(candidate[ci]);
+              if (parsed) cols.push({ ci, ...parsed });
+            }
+            if (cols.length > 0) {
+              headerRowIdx = ri;
+              headerRow = candidate;
+              weekCols = cols;
+              break;
+            }
           }
 
-          if (!sistemaSemana) {
-            errs.push(`${file.name}: no se pudo determinar semana del sistema para columna "${headerRow[ci]}".`);
+          if (!weekCols.length) {
+            errs.push(`${file.name} [${grupo}]: no se encontraron columnas de semanas.`);
             continue;
           }
 
-          // Determine tipo_sesion
-          const tipoSesion = (calMap[fechaSesion]?.tipo) || 'TP';
+          const dataRows = rawRows.slice(headerRowIdx + 1).filter(r => r[0] != null);
 
-          // Process each participant row
-          for (const row of dataRows) {
-            const rawRut = row[1];
-            if (!rawRut) continue;
+          // Find anchor: first week col that has a date
+          const anchor = weekCols.find(wc => wc.dateStr);
+          let anchorSistema = null;
+          let anchorLocal = null;
+          let anchorDate = null;
 
-            const rut = normRut(rawRut);
-            const raw = row[ci];
-            let estado = mapEstado(raw);
+          if (anchor) {
+            if (calMap[anchor.dateStr]) {
+              anchorSistema = parseInt(calMap[anchor.dateStr].semana);
+            } else {
+              anchorSistema = deriveSystemWeek(anchor.dateStr, grupo, fechaInicio);
+            }
+            anchorLocal = anchor.semanaLocal;
+            anchorDate = anchor.dateStr;
+          }
 
-            // blank in active session → Ausente
-            if (estado === '') estado = 'A';
-            if (estado === null) continue;
+          for (const wc of weekCols) {
+            const { ci, semanaLocal, dateStr } = wc;
 
-            const part = partByRut[rut];
-            const nombre = part?.nombre_completo || String(row[0] || rut);
-            const key = `${rut}|${grupo}|${sistemaSemana}|${tipoSesion}`;
+            const colVals = dataRows.map(r => r[ci]);
+            const hasData = colVals.some(v => v != null && String(v).trim() !== '');
+            if (!hasData) continue;
 
-            let action;
-            if (!part) action = 'no-match';
-            else if (existingKeys.has(key)) action = 'skip';
-            else action = 'import';
+            let sistemaSemana, fechaSesion;
+            if (anchorSistema && anchorLocal) {
+              const offset = semanaLocal - anchorLocal;
+              sistemaSemana = anchorSistema + offset;
+              fechaSesion = anchorDate ? addWeeks(anchorDate, offset) : (dateStr || '');
+            } else if (dateStr) {
+              sistemaSemana = deriveSystemWeek(dateStr, grupo, fechaInicio);
+              fechaSesion = dateStr;
+            }
 
-            results.push({
-              _key: key,
-              grupo,
-              rut,
-              rutDisplay: String(rawRut).trim(),
-              nombre,
-              semana: String(sistemaSemana),
-              fechaSesion: fechaSesion || '',
-              tipoSesion,
-              estado,
-              action,
-              archivo: file.name,
-            });
+            if (!sistemaSemana) {
+              errs.push(`${file.name} [${grupo}]: no se pudo determinar semana del sistema para columna "${headerRow[ci]}".`);
+              continue;
+            }
+
+            const tipoSesion = (calMap[fechaSesion]?.tipo) || 'TP';
+
+            for (const row of dataRows) {
+              const rawRut = row[1];
+              if (!rawRut) continue;
+
+              const rut = normRut(rawRut);
+              const raw = row[ci];
+              let estado = mapEstado(raw);
+
+              if (estado === '') estado = 'A';
+              if (estado === null) continue;
+
+              const part = partByRut[rut];
+              const nombre = part?.nombre_completo || String(row[0] || rut);
+              const key = `${rut}|${grupo}|${sistemaSemana}|${tipoSesion}`;
+
+              let action;
+              if (!part) action = 'no-match';
+              else if (existingKeys.has(key)) action = 'skip';
+              else action = 'import';
+
+              results.push({
+                _key: key,
+                grupo,
+                rut,
+                rutDisplay: String(rawRut).trim(),
+                nombre,
+                semana: String(sistemaSemana),
+                fechaSesion: fechaSesion || '',
+                tipoSesion,
+                estado,
+                action,
+                archivo: file.name,
+              });
+            }
           }
         }
       }
