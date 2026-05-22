@@ -18,6 +18,7 @@ export default function CriticalAlerts() {
   const [resumen, setResumen] = useState([]);
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filtroNivel, setFiltroNivel] = useState('TODOS');
   const [filtroGrupo, setFiltroGrupo] = useState('');
 
@@ -41,11 +42,15 @@ export default function CriticalAlerts() {
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       const [res, parts] = await Promise.all([readSheet('RESUMEN_PARTICIPANTE'), readSheet('PARTICIPANTES')]);
       setResumen(res);
       setParticipantes(parts);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Error al cargar datos');
+    }
     finally { setLoading(false); }
   }
 
@@ -102,6 +107,21 @@ export default function CriticalAlerts() {
   }
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--color-verde)] border-t-transparent rounded-full animate-spin" /></div>;
+
+  if (error) return (
+    <div className="flex-1 flex flex-col">
+      <Topbar title="Alertas y contactos" />
+      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
+        <HelpCircle size={32} className="text-amber-500" />
+        <div className="text-center max-w-md">
+          <p className="font-semibold text-gray-700 mb-1">No se pudo cargar la información</p>
+          <p className="text-sm text-gray-500 mb-3">Verificá que tu cuenta de Google tenga acceso a la planilla del sistema.</p>
+          <p className="text-xs text-gray-400 font-mono bg-gray-50 rounded px-3 py-2">{error}</p>
+        </div>
+        <button onClick={load} className="text-sm text-[var(--color-verde)] underline">Reintentar</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex-1 flex flex-col">
